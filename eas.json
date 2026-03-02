@@ -1,0 +1,49 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://cg4kg8o4gko8k0sskowcgww8.72.60.29.89.sslip.io/api",
+        "EXPO_PUBLIC_AI_BASE_URL": "http://hg4c0wgoogwgwsk4gc8wwk00.72.60.29.89.sslip.io",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "253368686183-kbmgsjkp80t7p5p1tgfj8thdqnfk4btb.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "253368686183-11qpplrgan1t8iaks9ttn7s10nikrnld.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "253368686183-9paobkn0co5of0jesudk0t5ubvbn4npf.apps.googleusercontent.com"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://cg4kg8o4gko8k0sskowcgww8.72.60.29.89.sslip.io/api",
+        "EXPO_PUBLIC_AI_BASE_URL": "http://hg4c0wgoogwgwsk4gc8wwk00.72.60.29.89.sslip.io",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "253368686183-kbmgsjkp80t7p5p1tgfj8thdqnfk4btb.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "253368686183-11qpplrgan1t8iaks9ttn7s10nikrnld.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "253368686183-9paobkn0co5of0jesudk0t5ubvbn4npf.apps.googleusercontent.com"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.khurasanlabs.com/api",
+        "EXPO_PUBLIC_AI_BASE_URL": "https://py.khurasanlabs.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "253368686183-kbmgsjkp80t7p5p1tgfj8thdqnfk4btb.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "253368686183-11qpplrgan1t8iaks9ttn7s10nikrnld.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "253368686183-9paobkn0co5of0jesudk0t5ubvbn4npf.apps.googleusercontent.com"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  },
+  "cli": {
+    "appVersionSource": "remote"
+  }
+}

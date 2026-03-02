@@ -1,0 +1,61 @@
+# dependencies
+node_modules/
+backend/node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# local archives/backups
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+
+
+# typescript
+*.tsbuildinfo
+
+# generated native build outputs
+android/build/
+android/app/build/
+android/.gradle/
+android/app/.cxx/
+
+# VCS / IDE metadata
+.git/
+.idea/
+.vscode/
+
+# non-mobile project folders (large, not needed by EAS Android app build)
+AI/
+backend/
+
+# python caches / virtual envs (safety)
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.venv/
+**/venv/

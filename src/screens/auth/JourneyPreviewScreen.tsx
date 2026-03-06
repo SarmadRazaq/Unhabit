@@ -67,7 +67,7 @@ export const JourneyPreviewScreen = ({ navigation }: JourneyPreviewScreenProps) 
         try {
             await markOnboarded(undefined).unwrap();
         } catch {}
-        navigation.navigate('MainTabs');
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
     };
 
     return (

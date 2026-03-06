@@ -98,7 +98,7 @@ export const RootNavigator = () => {
                 <Stack.Screen name="JourneyPreview" component={JourneyPreviewScreen} />
 
                 {/* ── Main app screens ── */}
-                <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+                <Stack.Screen name="MainTabs" component={MainTabNavigator} options={{ gestureEnabled: false }} />
                 <Stack.Screen name="Home" component={HomeScreen} />
                 <Stack.Screen name="Profile" component={ProfileScreen} />
                 <Stack.Screen name="Notifications" component={NotificationsScreen} />

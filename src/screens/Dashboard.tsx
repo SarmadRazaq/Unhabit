@@ -427,18 +427,32 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                             // awards XP, updates the streak, and checks badges per task
                             const uncompleted = checklistItems.filter((t: any) => !t.completed);
 
+                            let totalXpEarned = 0;
+                            let failedCount = 0;
                             for (const task of uncompleted) {
-                                await completeTask(task.id).unwrap();
+                                try {
+                                    const result = await completeTask(task.id).unwrap();
+                                    totalXpEarned += (result as any)?.xp_earned ?? 10;
+                                } catch (taskErr: any) {
+                                    failedCount++;
+                                    console.warn(`Task ${task.id} failed:`, taskErr);
+                                }
                             }
 
-                            // Refetch dashboard to get fresh streak/XP after completions
+                            if (failedCount === uncompleted.length) {
+                                const msg = uncompleted.length === 1
+                                    ? 'Failed to complete the task. Please try again.'
+                                    : `All ${failedCount} tasks failed. Please try again.`;
+                                alert('Error', msg);
+                                return;
+                            }
+
+                            // Refetch dashboard to get fresh streak after completions
                             const freshResult = await refetch();
                             const fresh = freshResult.data;
 
                             const streakCount = fresh?.streak?.current ?? (dashboardData?.streak?.current ?? 0) + 1;
-                            // Use fresh XP today from backend (accounts for all tasks completed today)
-                            // Fallback: count all checklist tasks * 10 XP each
-                            const xpEarned = fresh?.xp?.today ?? (checklistItems.length * 10);
+                            const xpEarned = totalXpEarned || fresh?.xp?.today || (checklistItems.length * 10);
                             const dayCompleted = fresh?.journey?.current_day ?? dashboardData?.journey?.current_day ?? 1;
                             navigation?.navigate('DailyCompletion' as never, {
                                 streakCount,

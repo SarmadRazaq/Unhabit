@@ -216,7 +216,7 @@ export const ProfileScreen = () => {
                         } catch (e) {
                             // logout action already dispatched in onQueryStarted
                         }
-                        // Auth gate in RootNavigator auto-routes to unauthenticated screens
+                        navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
                     }
                 },
             ]

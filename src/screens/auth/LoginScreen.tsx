@@ -18,7 +18,8 @@ export const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const { alert } = useThemedAlert();
     const onApplePress = async () => {
         try {
-            await handleAppleLogin();
+            const success = await handleAppleLogin();
+            if (!success) return; // User cancelled or no token — stay on Login
             // Login succeeded — navigate to Splash to determine next screen
             navigation.replace('Splash');
         } catch (error: any) {
@@ -34,7 +35,8 @@ export const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const onGooglePress = async () => {
         if (!isGoogleReady) return;
         try {
-            await handleGoogleLogin();
+            const success = await handleGoogleLogin();
+            if (!success) return; // User cancelled or in-progress — stay on Login
             // Login succeeded — navigate to Splash to determine next screen
             navigation.replace('Splash');
         } catch (error: any) {

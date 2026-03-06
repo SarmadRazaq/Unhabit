@@ -20,6 +20,7 @@ import {
     usePurchaseStreakFreezeMutation,
     useGetAvailableFreezesQuery,
 } from '../services/api/streaksApi';
+import { useGetLevelQuery } from '../services/api/rewardsApi';
 
 // ============================================================================
 // MAIN SCREEN
@@ -31,10 +32,14 @@ const StreakFreezeScreen = () => {
     const { data: freezeData, isLoading: freezeLoading, refetch } = useGetAvailableFreezesQuery(undefined);
     const [freezeStreak, { isLoading: isFreezing }] = useFreezeStreakMutation();
     const [purchaseStreakFreeze, { isLoading: isPurchasing }] = usePurchaseStreakFreezeMutation();
+    const { data: levelData } = useGetLevelQuery(undefined);
 
     const streak = streakData;
     const freezes = freezeData;
     const available = freezes?.available_freezes ?? 0;
+    const freezeCost = (freezes as any)?.cost ?? 50;
+    const userXP = (levelData as any)?.total_xp ?? 0;
+    const canAffordFreeze = userXP >= freezeCost;
     const isLoading = streakLoading || freezeLoading;
 
     const handleFreeze = async () => {
@@ -61,10 +66,13 @@ const StreakFreezeScreen = () => {
     };
 
     const handlePurchase = async () => {
-        const cost = 50;
+        if (!canAffordFreeze) {
+            alert('Insufficient XP', `You need ${freezeCost} XP but only have ${userXP} XP. Keep completing tasks to earn more!`);
+            return;
+        }
         alert(
             'Purchase Streak Freeze',
-            `Spend ${cost} XP to buy a streak freeze?`,
+            `Spend ${freezeCost} XP to buy a streak freeze?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -166,9 +174,9 @@ const StreakFreezeScreen = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.actionBtn, styles.purchaseBtn]}
+                    style={[styles.actionBtn, styles.purchaseBtn, !canAffordFreeze && { opacity: 0.5 }]}
                     onPress={handlePurchase}
-                    disabled={isPurchasing}
+                    disabled={isPurchasing || !canAffordFreeze}
                 >
                     {isPurchasing ? (
                         <ActivityIndicator color={COLORS.primary} size="small" />

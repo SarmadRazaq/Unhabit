@@ -1437,6 +1437,12 @@ const StatsScreen = () => {
                     : '⏳ You haven\'t completed today\'s habit yet. Keep going!',
                 [{ text: 'OK' }]
             );
+        } else if (day.isFuture) {
+            alert(
+                `Day ${day.date}`,
+                '🔒 Upcoming',
+                [{ text: 'OK' }]
+            );
         } else {
             alert(
                 `Day ${day.date}`,
@@ -1604,7 +1610,11 @@ const StatsScreen = () => {
                 </LinearGradient>
                 
                 {/* Streak Stats Card */}
-                <View style={styles.streakCard}>
+                <TouchableOpacity
+                    style={styles.streakCard}
+                    onPress={() => navigation.navigate('StreakDetails')}
+                    activeOpacity={0.8}
+                >
                     <View style={styles.streakRow}>
                         <StreakCard 
                             icon="flame" 
@@ -1618,7 +1628,7 @@ const StatsScreen = () => {
                             value={`${statsData.streak.longest} Days`} 
                         />
                     </View>
-                </View>
+                </TouchableOpacity>
                 
                 {/* Habit Health Chart */}
                 <HabitHealthChart 
@@ -1627,7 +1637,11 @@ const StatsScreen = () => {
                 />
                 
                 {/* Impact of Free Days */}
-                <View style={styles.impactCard}>
+                <TouchableOpacity
+                    style={styles.impactCard}
+                    onPress={() => navigation.navigate('StreakFreeze')}
+                    activeOpacity={0.8}
+                >
                     <View style={styles.impactHeader}>
                         <Ionicons name="calendar-outline" size={22} color={COLORS.primary} />
                         <Text style={styles.impactTitle}>Impact of Free Days</Text>
@@ -1653,7 +1667,7 @@ const StatsScreen = () => {
                             <Text style={styles.impactStatLabel}>Penalty</Text>
                         </View>
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* XP Progress */}
                 <XPProgressChart 

@@ -79,7 +79,7 @@ type OAuthProvider = "google" | "apple";
  */
 export async function loginWithOAuth(
   provider: OAuthProvider,
-  params: { idToken: string; nonce?: string | undefined }
+  params: { idToken: string; nonce?: string | undefined; fullName?: string | undefined }
 ) {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider,
@@ -95,11 +95,17 @@ export async function loginWithOAuth(
     throw new Error("OAuth login failed: missing session");
   }
 
+  // For Apple Sign In, full_name is only provided on the very first authorization.
+  // Prefer the explicitly-passed fullName (from the client), then fall back to
+  // Supabase user_metadata, since Apple won't provide the name again.
+  const resolvedName =
+    params.fullName ??
+    (data.user.user_metadata as Record<string, any>)?.full_name ??
+    (data.user.user_metadata as Record<string, any>)?.name ??
+    undefined;
+
   await createOrUpdateProfile(data.user.id, {
-    full_name:
-      (data.user.user_metadata as Record<string, any>)?.full_name ??
-      (data.user.user_metadata as Record<string, any>)?.name ??
-      undefined,
+    full_name: resolvedName,
     avatar_url: (data.user.user_metadata as Record<string, any>)?.avatar_url,
     email: data.user.email ?? undefined,
   });

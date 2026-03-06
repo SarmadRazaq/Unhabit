@@ -94,7 +94,8 @@ export const SplashScreen = ({ navigation }: SplashScreenProps) => {
                     } finally {
                         result.unsubscribe();
                     }
-                    return;
+                    // Don't return here — if token validation failed and hasNavigated
+                    // is still false, fall through to permission/onboarding checks below.
                 }
             } catch {
                 // Network error or other failure — clear stale state

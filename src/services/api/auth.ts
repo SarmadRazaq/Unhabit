@@ -70,10 +70,10 @@ export const authApi = apiSlice.injectEndpoints({
             },
         }),
         loginWithGoogle: builder.mutation({
-            query: ({ idToken, nonce }: { idToken: string; nonce: string }) => ({
+            query: ({ idToken, nonce }: { idToken: string; nonce?: string }) => ({
                 url: '/auth/oauth/google',
                 method: 'POST',
-                body: { id_token: idToken, nonce },
+                body: { id_token: idToken, ...(nonce && { nonce }) },
             }),
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
                 try {
@@ -167,7 +167,7 @@ export const authApi = apiSlice.injectEndpoints({
                     }
 
                     dispatch(
-                        apiSlice.util.updateQueryData('getMe' as any, undefined, (draft: any) => {
+                        (apiSlice.util.updateQueryData as any)('getMe', undefined, (draft: any) => {
                             if (draft?.user) {
                                 draft.user = { ...draft.user, ...updatedUser };
                             }
@@ -175,7 +175,7 @@ export const authApi = apiSlice.injectEndpoints({
                     );
 
                     dispatch(
-                        apiSlice.util.updateQueryData('getDashboard' as any, undefined, (draft: any) => {
+                        (apiSlice.util.updateQueryData as any)('getDashboard', undefined, (draft: any) => {
                             if (draft?.user) {
                                 draft.user = { ...draft.user, ...updatedUser, name: updatedUser.full_name ?? updatedUser.name ?? draft.user.name };
                             }

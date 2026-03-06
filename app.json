@@ -33,6 +33,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
+      "usesCleartextTraffic": false,
       "package": "com.sulemanahmadzai.Unhabit",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",

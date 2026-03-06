@@ -91,12 +91,14 @@ r.post("/oauth/:provider", async (req, res, next) => {
     const schema = z.object({
       id_token: z.string(),
       nonce: z.string().optional(),
+      full_name: z.string().optional(),
     });
-    const { id_token, nonce } = schema.parse(req.body);
+    const { id_token, nonce, full_name } = schema.parse(req.body);
 
     const result = await Auth.loginWithOAuth(provider, {
       idToken: id_token,
       nonce: nonce,
+      fullName: full_name,
     });
 
     res.json({
@@ -221,6 +223,8 @@ r.get("/me", requireAuth, async (req, res, next) => {
         email: user.email,
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
+        user_metadata: user.user_metadata,
+        app_metadata: user.app_metadata,
       },
       profile,
     });

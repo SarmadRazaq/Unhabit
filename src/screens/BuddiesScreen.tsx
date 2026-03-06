@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../constants/theme';
 import Mascot from '../components/common/Mascot';
 import { InitialsAvatar } from '../components/common';
-import { useGetBuddiesQuery, useNudgeBuddyMutation, useInviteBuddyMutation, useAcceptInviteMutation } from '../services/api/buddiesApi';
+import { useGetBuddiesQuery, useNudgeBuddyMutation, useInviteBuddyMutation, useAcceptInviteMutation, useGetInvitesQuery, useResendInviteMutation, useCancelInviteMutation } from '../services/api/buddiesApi';
 import { useGetFriendsLeaderboardQuery } from '../services/api/leaderboardApi';
 import { useThemedAlert } from '../components/common/ThemedAlert';
 
@@ -364,9 +364,16 @@ const BuddiesScreen = () => {
     // API hooks
     const { data: buddiesApiData, isLoading: buddiesLoading, isError: buddiesError } = useGetBuddiesQuery(undefined);
     const { data: leaderboardApiData } = useGetFriendsLeaderboardQuery(undefined);
+    const { data: invitesData } = useGetInvitesQuery(undefined);
     const [nudgeBuddy] = useNudgeBuddyMutation();
     const [inviteBuddyApi] = useInviteBuddyMutation();
     const [acceptInvite] = useAcceptInviteMutation();
+    const [resendInvite] = useResendInviteMutation();
+    const [cancelInvite] = useCancelInviteMutation();
+
+    const pendingInvites = (Array.isArray(invitesData) ? invitesData : []).filter(
+        (inv: any) => inv.status === 'pending',
+    );
 
     // Map API data to Buddy interface
     const buddies: Buddy[] = (Array.isArray(buddiesApiData) ? buddiesApiData : []).map((b: any) => ({
@@ -396,6 +403,33 @@ const BuddiesScreen = () => {
             buddyName: buddy.name,
             buddyAvatar: buddy.avatar,
         });
+    };
+
+    const handleResendInvite = async (inviteId: string) => {
+        try {
+            await resendInvite(inviteId).unwrap();
+            alert('Invite Resent!', 'Your buddy invite has been resent.');
+        } catch {
+            alert('Error', 'Failed to resend invite. Please try again.');
+        }
+    };
+
+    const handleCancelInvite = async (inviteId: string) => {
+        alert('Cancel Invite', 'Are you sure you want to cancel this invite?', [
+            { text: 'Keep', style: 'cancel' },
+            {
+                text: 'Cancel Invite',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await cancelInvite(inviteId).unwrap();
+                        alert('Invite Cancelled', 'The invite has been cancelled.');
+                    } catch {
+                        alert('Error', 'Failed to cancel invite.');
+                    }
+                },
+            },
+        ]);
     };
 
     const handleInviteBuddy = () => setShowInvite(true);
@@ -491,6 +525,39 @@ const BuddiesScreen = () => {
                                     onViewProfile={() => handleViewProfile(buddy)}
                                 />
                             ))
+                        )}
+
+                        {/* Pending Invites */}
+                        {pendingInvites.length > 0 && (
+                            <View style={styles.pendingInvitesSection}>
+                                <Text style={styles.pendingInvitesTitle}>Pending Invites</Text>
+                                {pendingInvites.map((inv: any) => (
+                                    <View key={inv.id} style={styles.pendingInviteCard}>
+                                        <View style={styles.pendingInviteInfo}>
+                                            <Text style={styles.pendingInviteCode}>{inv.invite_code}</Text>
+                                            <Text style={styles.pendingInviteDate}>
+                                                Sent {new Date(inv.created_at).toLocaleDateString()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.pendingInviteActions}>
+                                            <TouchableOpacity
+                                                style={styles.resendButton}
+                                                onPress={() => handleResendInvite(inv.id)}
+                                            >
+                                                <Ionicons name="refresh-outline" size={16} color={COLORS.primary} />
+                                                <Text style={styles.resendButtonText}>Resend</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.cancelInviteButton}
+                                                onPress={() => handleCancelInvite(inv.id)}
+                                            >
+                                                <Ionicons name="close-circle-outline" size={16} color="#FF4C0D" />
+                                                <Text style={styles.cancelInviteButtonText}>Cancel</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
                         )}
 
                         {/* Invite Section */}
@@ -845,6 +912,76 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: COLORS.primary,
+    },
+    pendingInvitesSection: {
+        gap: 10,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.06)',
+        paddingTop: 16,
+    },
+    pendingInvitesTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: 'rgba(255,255,255,0.5)',
+        marginBottom: 4,
+    },
+    pendingInviteCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    pendingInviteInfo: {
+        gap: 2,
+        flex: 1,
+    },
+    pendingInviteCode: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.primary,
+        letterSpacing: 1,
+    },
+    pendingInviteDate: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.35)',
+    },
+    pendingInviteActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    resendButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(44,232,198,0.3)',
+    },
+    resendButtonText: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: COLORS.primary,
+    },
+    cancelInviteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,76,13,0.3)',
+    },
+    cancelInviteButtonText: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#FF4C0D',
     },
 });
 

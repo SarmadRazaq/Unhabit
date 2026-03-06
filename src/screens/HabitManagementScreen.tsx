@@ -165,12 +165,16 @@ const HabitManagementScreen = () => {
     const { alert } = useThemedAlert();
     const navigation = useNavigation();
     const { data: habitsData, isLoading, refetch } = useGetHabitsQuery(undefined);
+    const { data: templatesData, isLoading: templatesLoading } = useGetHabitTemplatesQuery(undefined);
     const [createHabit, { isLoading: isCreating }] = useCreateHabitMutation();
     const [updateHabit, { isLoading: isUpdating }] = useUpdateHabitMutation();
     const [deleteHabit] = useDeleteHabitMutation();
 
     const [showModal, setShowModal] = useState(false);
     const [editingHabit, setEditingHabit] = useState<any>(null);
+    const [showTemplates, setShowTemplates] = useState(false);
+
+    const templates = Array.isArray(templatesData) ? templatesData : (templatesData as any)?.templates ?? [];
 
     const habits = Array.isArray(habitsData) ? habitsData : (habitsData as any)?.habits ?? [];
 
@@ -285,6 +289,58 @@ const HabitManagementScreen = () => {
                             onDelete={() => handleDelete(habit)}
                         />
                     ))}
+
+                    {/* Templates Section */}
+                    <TouchableOpacity
+                        style={styles.templatesToggle}
+                        onPress={() => setShowTemplates(!showTemplates)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.templatesToggleLeft}>
+                            <Ionicons name="albums-outline" size={20} color={COLORS.primary} />
+                            <Text style={styles.templatesToggleText}>Browse Templates</Text>
+                        </View>
+                        <Ionicons name={showTemplates ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.primary} />
+                    </TouchableOpacity>
+
+                    {showTemplates && (
+                        <View style={styles.templatesSection}>
+                            {templatesLoading ? (
+                                <ActivityIndicator size="small" color={COLORS.primary} style={{ paddingVertical: 16 }} />
+                            ) : templates.length === 0 ? (
+                                <Text style={styles.templatesEmpty}>No templates available</Text>
+                            ) : (
+                                templates.map((t: any) => (
+                                    <TouchableOpacity
+                                        key={t.id}
+                                        style={styles.templateCard}
+                                        onPress={() => {
+                                            setEditingHabit(null);
+                                            setShowModal(true);
+                                            // Pre-fill will happen via initialData in the next render
+                                            setEditingHabit({
+                                                name: t.name ?? t.goal_text ?? '',
+                                                description: t.description ?? '',
+                                                category: t.category ?? t.habit_categories?.name ?? '',
+                                            });
+                                            // We set editingHabit but it's a template, so flip back to create mode
+                                            setTimeout(() => setEditingHabit((prev: any) => prev ? { ...prev, __template: true } : prev), 0);
+                                        }}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={styles.templateInfo}>
+                                            <Text style={styles.templateName}>{t.name ?? t.goal_text}</Text>
+                                            {t.description ? (
+                                                <Text style={styles.templateDesc} numberOfLines={1}>{t.description}</Text>
+                                            ) : null}
+                                        </View>
+                                        <Ionicons name="add-circle-outline" size={22} color={COLORS.primary} />
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </View>
+                    )}
+
                     <View style={{ height: 100 }} />
                 </ScrollView>
             )}
@@ -369,6 +425,23 @@ const styles = StyleSheet.create({
     },
     saveButtonDisabled: { opacity: 0.5 },
     saveButtonText: { fontSize: 16, fontWeight: '600', color: 'black' },
+    templatesToggle: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12,
+        borderWidth: 1, borderColor: 'rgba(44,232,198,0.15)', marginTop: 8, marginBottom: 8,
+    },
+    templatesToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    templatesToggleText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
+    templatesSection: { gap: 8, marginBottom: 12 },
+    templatesEmpty: { fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingVertical: 16 },
+    templateCard: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        backgroundColor: '#0C0C0C', borderRadius: 10, padding: 14,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    },
+    templateInfo: { flex: 1, gap: 2 },
+    templateName: { fontSize: 15, fontWeight: '500', color: 'white' },
+    templateDesc: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
 });
 
 export default HabitManagementScreen;

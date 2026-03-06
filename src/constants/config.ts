@@ -5,10 +5,10 @@ export const APP_CONFIG = {
   version: '1.0.0',
   apiBaseUrl:
     process.env.EXPO_PUBLIC_API_BASE_URL ||
-    'http://cg4kg8o4gko8k0sskowcgww8.72.60.29.89.sslip.io/api',
+    'https://api.khurasanlabs.com/api',
   aiBaseUrl:
     process.env.EXPO_PUBLIC_AI_BASE_URL ||
-    'http://hg4c0wgoogwgwsk4gc8wwk00.72.60.29.89.sslip.io',
+    'https://py.khurasanlabs.com',
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
   googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',

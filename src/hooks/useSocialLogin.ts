@@ -53,7 +53,7 @@ export const useSocialLogin = () => {
         setIsGoogleReady(true);
     }, []);
 
-    const handleAppleLogin = async () => {
+    const handleAppleLogin = async (): Promise<boolean> => {
         try {
             const nonceBytes = await Crypto.getRandomBytesAsync(32);
             const nonce = Array.from(nonceBytes)
@@ -81,11 +81,14 @@ export const useSocialLogin = () => {
                         ? `${credential.fullName.givenName ?? ''} ${credential.fullName.familyName ?? ''}`.trim()
                         : undefined,
                 }).unwrap();
+                return true;
             }
+            // No identity token received — treat as no-op
+            return false;
         } catch (e: any) {
             if (e.code === 'ERR_CANCELED' || e.code === 'ERR_REQUEST_CANCELED') {
-                // User canceled
-                return;
+                // User canceled — stay on Login screen
+                return false;
             }
             if (__DEV__) console.error('Apple Login Error:', e);
             // Extract backend error message for display
@@ -98,36 +101,39 @@ export const useSocialLogin = () => {
         }
     };
 
-    const handleGoogleLogin = async () => {
+    const handleGoogleLogin = async (): Promise<boolean> => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            // Generate a nonce so the id_token and Supabase verification match
+            // Generate a nonce so Supabase can verify the id_token.
+            // The hashed nonce is embedded in the token by Google;
+            // the raw nonce is sent to Supabase for verification.
             const nonceBytes = await Crypto.getRandomBytesAsync(32);
-            const rawNonce = Array.from(nonceBytes)
+            const nonce = Array.from(nonceBytes)
                 .map((b) => b.toString(16).padStart(2, '0'))
                 .join('');
             const hashedNonce = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256,
-                rawNonce
+                nonce
             );
 
             const userInfo = await GoogleSignin.signIn({ nonce: hashedNonce });
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                await loginWithGoogle({ idToken, nonce: rawNonce }).unwrap();
+                await loginWithGoogle({ idToken, nonce }).unwrap();
+                return true;
             } else {
                 if (__DEV__) console.error('No ID token present');
                 throw new Error('Google Sign-In failed: no ID token received');
             }
         } catch (error: any) {
             if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                // user cancelled
-                return;
+                // user cancelled — stay on Login screen
+                return false;
             } else if (error.code === statusCodes.IN_PROGRESS) {
-                // already in progress
-                return;
+                // already in progress — stay on Login screen
+                return false;
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                 throw new Error(getGoogleSignInErrorMessage(error));
             } else {

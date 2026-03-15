@@ -6,8 +6,10 @@ import {
     TouchableOpacity,
     Platform,
     Share,
+    KeyboardAvoidingView,
+    Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -328,6 +330,7 @@ const renderChatFooter = (
 const ChatScreen = () => {
     const navigation = useNavigation();
     const { alert } = useThemedAlert();
+    const insets = useSafeAreaInsets();
     const authUser = useAppSelector((state) => state.auth.user);
     const CURRENT_USER = useMemo(() => ({
         _id: authUser?.id || DEFAULT_CURRENT_USER._id,
@@ -512,6 +515,7 @@ const ChatScreen = () => {
     };
 
     const handleMenu = () => {
+        Keyboard.dismiss();
         alert('Chat Options', 'Choose an action', [
             {
                 text: 'Clear Chat',
@@ -564,51 +568,66 @@ const ChatScreen = () => {
         onSend([moodMessage]);
     }, [onSend, CURRENT_USER]);
 
+    const handleBack = useCallback(() => {
+        Keyboard.dismiss();
+        navigation.goBack();
+    }, [navigation]);
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar style="light" />
             
             <ChatHeader
-                onBack={() => navigation.goBack()}
+                onBack={handleBack}
                 onMenu={handleMenu}
                 aiStatus={aiStatusText}
             />
 
-            <GiftedChat
-                messages={messages}
-                onSend={messages => onSend(messages)}
-                user={CURRENT_USER}
-                renderBubble={renderBubble}
-                renderAvatar={renderAvatar}
-                renderInputToolbar={renderInputToolbar}
-                renderComposer={renderComposer}
-                renderSend={renderSend}
-                renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
-                renderMessage={(props) => {
-                    const { key, ...rest } = props;
-                    return <Message key={key} {...rest} />;
-                }}
-                renderChatEmpty={() => null}
-                listViewProps={{
-                    ListFooterComponent: () => renderChatHeader(
-                        challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
-                        handleAcceptChallenge,
-                    ),
-                }}
-                isTyping={isTyping}
-                alwaysShowSend
-                scrollToBottom
-                scrollToBottomComponent={() => (
-                    <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
-                )}
-                minInputToolbarHeight={80}
-                bottomOffset={Platform.OS === 'ios' ? 90 : 0}
-                messagesContainerStyle={styles.messagesContainer}
-                textInputProps={{
-                    autoCorrect: true,
-                    autoCapitalize: 'sentences',
-                }}
-            />
+            <KeyboardAvoidingView
+                style={styles.keyboardAvoidingView}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+                <GiftedChat
+                    messages={messages}
+                    onSend={messages => onSend(messages)}
+                    user={CURRENT_USER}
+                    renderBubble={renderBubble}
+                    renderAvatar={renderAvatar}
+                    renderInputToolbar={renderInputToolbar}
+                    renderComposer={renderComposer}
+                    renderSend={renderSend}
+                    renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
+                    renderMessage={(props) => {
+                        const { key, ...rest } = props;
+                        return <Message key={key} {...rest} />;
+                    }}
+                    renderChatEmpty={() => null}
+                    listViewProps={{
+                        keyboardDismissMode: 'interactive' as const,
+                        keyboardShouldPersistTaps: 'handled' as const,
+                        ListFooterComponent: () => renderChatHeader(
+                            challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
+                            handleAcceptChallenge,
+                        ),
+                    }}
+                    isTyping={isTyping}
+                    alwaysShowSend
+                    scrollToBottom
+                    scrollToBottomComponent={() => (
+                        <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
+                    )}
+                    minInputToolbarHeight={80}
+                    bottomOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+                    messagesContainerStyle={styles.messagesContainer}
+                    textInputProps={{
+                        autoCorrect: true,
+                        autoCapitalize: 'sentences',
+                        returnKeyType: 'send',
+                        blurOnSubmit: false,
+                    }}
+                />
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -617,6 +636,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    keyboardAvoidingView: {
+        flex: 1,
     },
     // Header
     header: {

@@ -50,8 +50,8 @@ const DayCircle = ({ day, isActive, isCompleted, isCurrent, onPress }: {
     >
         <Text style={[
             styles.dayCircleText,
-            isCompleted && styles.dayCircleTextCompleted,
             isCurrent && styles.dayCircleTextCurrent,
+            isCompleted && styles.dayCircleTextCompleted,
         ]}>
             {day}
         </Text>
@@ -256,6 +256,8 @@ const JourneyDayViewScreen = () => {
     const tasks = (selectedDay !== null ? dayDetail?.tasks : todayData?.tasks) ?? [];
     const viewingDay = selectedDay ?? currentDay;
     const dayId = dayDetail?.id ?? todayData?.day_id ?? '';
+    const dayTheme = (selectedDay !== null ? dayDetail?.theme : todayData?.theme) as string | null ?? null;
+    const dayPrompts = (selectedDay !== null ? dayDetail?.prompts : todayData?.prompts) as string[] | null ?? null;
 
     const completedCount = tasks.filter((t: any) => t.completed).length;
     const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -293,7 +295,11 @@ const JourneyDayViewScreen = () => {
 
     const handleReflection = async (data: { journeyDayId: string; mood: string; text: string }) => {
         try {
-            await createReflection(data).unwrap();
+            await createReflection({
+                journey_day_id: data.journeyDayId,
+                content: data.text,
+                answers: data.mood ? { mood: data.mood } : undefined,
+            }).unwrap();
             setShowReflection(false);
             alert('Saved! 📝', 'Your reflection has been recorded.');
         } catch {
@@ -303,7 +309,10 @@ const JourneyDayViewScreen = () => {
 
     const handleSlip = async (data: { reason: string; trigger: string; severity: string }) => {
         try {
-            await reportSlip(data).unwrap();
+            await reportSlip({
+                happened_at: new Date().toISOString(),
+                context: { reason: data.reason, trigger: data.trigger, severity: data.severity },
+            }).unwrap();
             setShowSlip(false);
             alert('Recorded 💙', 'Thank you for being honest. Every setback is a setup for a comeback.');
         } catch {
@@ -314,6 +323,13 @@ const JourneyDayViewScreen = () => {
     if (journeyLoading || todayLoading) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={28} color={COLORS.white} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Journey</Text>
+                    <View style={{ width: 28 }} />
+                </View>
                 <View style={styles.centered}>
                     <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
@@ -339,12 +355,22 @@ const JourneyDayViewScreen = () => {
     if (todayError) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={28} color={COLORS.white} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Journey</Text>
+                    <View style={{ width: 28 }} />
+                </View>
                 <View style={styles.centered}>
                     <Ionicons name="alert-circle-outline" size={64} color="rgba(255,255,255,0.2)" />
                     <Text style={styles.emptyTitle}>Could Not Load Today</Text>
                     <Text style={styles.emptySubtitle}>There was a problem loading your daily tasks</Text>
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => refetchToday()}>
                         <Text style={styles.primaryBtnText}>Retry</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: 'transparent', marginTop: 8 }]} onPress={() => navigation.goBack()}>
+                        <Text style={[styles.primaryBtnText, { color: COLORS.primary }]}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -417,6 +443,27 @@ const JourneyDayViewScreen = () => {
                         ))}
                     </View>
                 </ScrollView>
+
+                {/* Day Phase & Advice */}
+                {(dayTheme || (dayPrompts && dayPrompts.length > 0)) && (
+                    <View style={styles.dayAdviceCard}>
+                        {dayTheme && (
+                            <View style={styles.phaseRow}>
+                                <View style={styles.phaseBadge}>
+                                    <Ionicons
+                                        name={dayTheme.includes('Awareness') ? 'eye-outline' : dayTheme.includes('Pattern') ? 'shuffle-outline' : 'diamond-outline'}
+                                        size={14}
+                                        color={COLORS.primary}
+                                    />
+                                    <Text style={styles.phaseBadgeText}>{dayTheme}</Text>
+                                </View>
+                            </View>
+                        )}
+                        {dayPrompts && dayPrompts.length > 0 && dayPrompts.map((prompt: string, idx: number) => (
+                            <Text key={idx} style={styles.dayAdviceText}>{prompt}</Text>
+                        ))}
+                    </View>
+                )}
 
                 {/* Tasks */}
                 <Text style={styles.sectionTitle}>
@@ -526,6 +573,17 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 18, fontWeight: '600', color: 'white', marginTop: 24, marginBottom: 12 },
     calendarScroll: { marginBottom: 8 },
     calendarRow: { flexDirection: 'row', gap: 8 },
+    dayAdviceCard: {
+        backgroundColor: 'rgba(44,232,198,0.06)', borderRadius: 12, padding: 16, marginTop: 16,
+        borderWidth: 1, borderColor: 'rgba(44,232,198,0.12)', gap: 10,
+    },
+    phaseRow: { flexDirection: 'row' },
+    phaseBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(44,232,198,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    },
+    phaseBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+    dayAdviceText: { fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 21 },
     dayCircle: {
         width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',

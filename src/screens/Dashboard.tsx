@@ -155,7 +155,7 @@ const HabitGauge = ({ percentage = 78 }: HabitGaugeProps) => {
             {/* Center Content */}
             <View style={gaugeStyles.centerContent}>
                 <Text style={gaugeStyles.label}>Habit Health</Text>
-                <Text style={gaugeStyles.value}>{percentage}%</Text>
+                <Text style={[gaugeStyles.value, { color: thumbColor }]}>{percentage}%</Text>
             </View>
         </View>
     );
@@ -210,10 +210,11 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
     const { data: levelData } = useGetLevelQuery(undefined);
     const { data: badgesData } = useGetBadgesQuery(undefined);
     const { data: badgeGalleryData } = useGetBadgeGalleryQuery(undefined);
-    const [completeTask, { isLoading: isCompletingDay }] = useCompleteTaskMutation();
+    const [completeTask] = useCompleteTaskMutation();
     const authUser = useSelector((state: any) => state.auth.user);
     const { alert } = useThemedAlert();
     const [refreshing, setRefreshing] = useState(false);
+    const [isCompleting, setIsCompleting] = useState(false);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -385,14 +386,21 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                                     </View>
                                     <View style={styles.checklistContent}>
                                         <View style={styles.checklistHeader}>
-                                            <Text style={styles.checklistTitle}>{item.title}</Text>
-                                            <Text style={styles.checklistXp}>+{item.xp} XP</Text>
+                                            <Text style={[
+                                                styles.checklistTitle,
+                                                item.completed && { textDecorationLine: 'line-through' as const, color: 'rgba(255,255,255,0.4)' },
+                                            ]}>{item.title}</Text>
+                                            <Text style={[
+                                                styles.checklistXp,
+                                                item.completed && { color: COLORS.primary },
+                                            ]}>+{item.xp} XP</Text>
                                         </View>
                                         <View style={styles.checklistProgressTrack}>
                                             <View
                                                 style={[
                                                     styles.checklistProgressFill,
                                                     { width: `${item.completed ? 100 : 0}%` },
+                                                    item.completed && { backgroundColor: COLORS.primary },
                                                 ]}
                                             />
                                         </View>
@@ -415,16 +423,13 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                 <TouchableOpacity
                     style={[
                         styles.primaryButton,
-                        (isCompletingDay || checklistItems.every((t: any) => t.completed)) && { opacity: 0.6 },
+                        (isCompleting || checklistItems.every((t: any) => t.completed)) && { opacity: 0.6 },
                     ]}
                     onPress={async () => {
-                        try {
-                            if (checklistItems.every((t: any) => t.completed)) {
-                                return;
-                            }
+                        if (isCompleting || checklistItems.every((t: any) => t.completed)) return;
 
-                            // Complete each uncompleted task individually so the backend
-                            // awards XP, updates the streak, and checks badges per task
+                        setIsCompleting(true);
+                        try {
                             const uncompleted = checklistItems.filter((t: any) => !t.completed);
 
                             let totalXpEarned = 0;
@@ -444,10 +449,10 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                                     ? 'Failed to complete the task. Please try again.'
                                     : `All ${failedCount} tasks failed. Please try again.`;
                                 alert('Error', msg);
+                                setIsCompleting(false);
                                 return;
                             }
 
-                            // Refetch dashboard to get fresh streak after completions
                             const freshResult = await refetch();
                             const fresh = freshResult.data;
 
@@ -461,12 +466,14 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                             } as never);
                         } catch {
                             alert('Error', 'Failed to complete today. Please try again.');
+                        } finally {
+                            setIsCompleting(false);
                         }
                     }}
-                    disabled={isCompletingDay || checklistItems.every((t: any) => t.completed)}
+                    disabled={isCompleting || checklistItems.every((t: any) => t.completed)}
                 >
                     <Text style={styles.primaryButtonText}>
-                        {isCompletingDay ? 'Completing...' : (checklistItems.every((t: any) => t.completed) ? 'Day Complete ✓' : 'Complete Today')}
+                        {isCompleting ? 'Completing...' : (checklistItems.every((t: any) => t.completed) ? 'Day Complete ✓' : 'Complete Today')}
                     </Text>
                 </TouchableOpacity>
                 )}
@@ -717,14 +724,15 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         borderRadius: 4,
-        backgroundColor: '#FFF8E9',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderWidth: 1,
-        borderColor: 'rgba(246, 207, 125, 0.8)',
+        borderColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     checkboxCompleted: {
-        backgroundColor: '#FFF8E9',
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
     },
     checklistContent: {
         flex: 1,

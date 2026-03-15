@@ -65,7 +65,7 @@ export const journeysApi = apiSlice.injectEndpoints({
                         name: t.title,
                         kind: t.kind,
                         effort: t.effort,
-                        description: t.description ?? null,
+                        description: t.description ?? t.meta?.description ?? null,
                         meta: t.meta,
                         xp_reward: 10,
                         completed: Array.isArray(t.user_task_progress)

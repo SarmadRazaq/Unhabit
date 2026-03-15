@@ -13,6 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Mascot, Button } from '../../components/common';
 import { COLORS, SPACING } from '../../constants/theme';
+import Screen2Illustration from '../../../assets/onboarding/screen2';
+import Screen3Illustration from '../../../assets/onboarding/screen3';
+import Screen4Illustration from '../../../assets/onboarding/screen4';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -25,6 +28,7 @@ interface SlideData {
     title: string;
     subtitle: string;
     illustrationSource?: any;
+    IllustrationComponent?: React.ComponentType<any>;
     isFirstSlide?: boolean;
     lineImage?: any;
 }
@@ -40,21 +44,21 @@ const slides: SlideData[] = [
         id: '2',
         title: 'Tell Us\nYour Habit',
         subtitle: "We'll learn what's holding you back.",
-        illustrationSource: require('../../../assets/onboarding/card1.png'),
+        IllustrationComponent: Screen2Illustration,
         lineImage: require('../../../assets/onboarding/line.png'),
     },
     {
         id: '3',
         title: 'Get Your 21\nday Journey',
         subtitle: 'AI designs a plan built just for you.',
-        illustrationSource: require('../../../assets/onboarding/card2.png'),
+        IllustrationComponent: Screen3Illustration,
         lineImage: require('../../../assets/onboarding/line.png'),
     },
     {
         id: '4',
         title: 'Track &\nTransform',
         subtitle: 'Stay consistent and see real change.',
-        illustrationSource: require('../../../assets/onboarding/card3.png'),
+        IllustrationComponent: Screen4Illustration,
         lineImage: require('../../../assets/onboarding/line.png'),
     },
 ];
@@ -135,13 +139,17 @@ export const OnboardingTutorialScreen = ({
         return (
             <View style={styles.slide}>
                 {/* Top Illustration */}
-                {item.illustrationSource && (
+                {(item.IllustrationComponent || item.illustrationSource) && (
                     <View style={styles.illustrationContainer}>
-                        <Image
-                            source={item.illustrationSource}
-                            style={styles.illustrationImage}
-                            resizeMode="contain"
-                        />
+                        {item.IllustrationComponent ? (
+                            <item.IllustrationComponent width={SCREEN_WIDTH * 0.85} height={SCREEN_HEIGHT * 0.3} />
+                        ) : (
+                            <Image
+                                source={item.illustrationSource}
+                                style={styles.illustrationImage}
+                                resizeMode="contain"
+                            />
+                        )}
                     </View>
                 )}
 

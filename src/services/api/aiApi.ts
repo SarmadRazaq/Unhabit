@@ -2,6 +2,8 @@ import { apiSlice } from './api';
 
 /** AI/LLM calls can take 30-60s; override the default 15s timeout */
 const AI_TIMEOUT_MS = 60_000;
+/** Plan generation involves multiple chained AI calls and can take longer */
+const PLAN_TIMEOUT_MS = 120_000;
 
 export const aiApi = apiSlice.injectEndpoints({
     overrideExisting: true,
@@ -51,7 +53,7 @@ export const aiApi = apiSlice.injectEndpoints({
                 url: '/ai/plan-21d',
                 method: 'POST',
                 body: data,
-                timeout: AI_TIMEOUT_MS,
+                timeout: PLAN_TIMEOUT_MS,
             }),
         }),
         aiCoachMessage: builder.mutation({

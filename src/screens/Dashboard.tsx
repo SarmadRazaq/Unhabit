@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, G, Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../constants/theme';
 import { Button } from '../components/common';
 import { Mascot } from '../components/common';
@@ -215,6 +216,17 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
     const { alert } = useThemedAlert();
     const [refreshing, setRefreshing] = useState(false);
     const [isCompleting, setIsCompleting] = useState(false);
+    const [forceRefreshOnFocus, setForceRefreshOnFocus] = useState(false);
+
+    // If we just completed today and navigated away, ensure the dashboard reflects
+    // fresh checklist/xp/streak when the screen regains focus.
+    useFocusEffect(
+        useCallback(() => {
+            if (!forceRefreshOnFocus) return;
+            setForceRefreshOnFocus(false);
+            void refetch();
+        }, [forceRefreshOnFocus, refetch])
+    );
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -459,6 +471,7 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                             const streakCount = fresh?.streak?.current ?? (dashboardData?.streak?.current ?? 0) + 1;
                             const xpEarned = totalXpEarned || fresh?.xp?.today || (checklistItems.length * 10);
                             const dayCompleted = fresh?.journey?.current_day ?? dashboardData?.journey?.current_day ?? 1;
+                            setForceRefreshOnFocus(true);
                             navigation?.navigate('DailyCompletion' as never, {
                                 streakCount,
                                 xpEarned,

@@ -5,12 +5,16 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     Image,
     Modal,
     FlatList,
     TextInput,
     Share,
     ActivityIndicator,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -239,73 +243,91 @@ const InviteBuddyModal = ({ visible, onClose, onInvite, onAcceptCode }: {
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            <View style={invStyles.overlay}>
-                <View style={invStyles.container}>
-                    <View style={invStyles.header}>
-                        <Text style={invStyles.title}>Invite a Buddy</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={28} color="white" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={invStyles.body}>
-                        <Text style={invStyles.sectionLabel}>Generate an invite link</Text>
-                        {generatedCode ? (
-                            <View style={invStyles.codeBox}>
-                                <Text style={invStyles.codeText}>{generatedCode}</Text>
-                                <TouchableOpacity onPress={handleCopy} style={invStyles.copyBtn}>
-                                    <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={20} color={COLORS.primary} />
-                                    <Text style={invStyles.copyText}>{copied ? 'Copied!' : 'Copy'}</Text>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <View style={invStyles.overlay}>
+                    <KeyboardAvoidingView
+                        style={{ flex: 1 }}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        keyboardVerticalOffset={0}
+                    >
+                        <View style={invStyles.container}>
+                            <View style={invStyles.header}>
+                                <Text style={invStyles.title}>Invite a Buddy</Text>
+                                <TouchableOpacity onPress={onClose}>
+                                    <Ionicons name="close" size={28} color="white" />
                                 </TouchableOpacity>
                             </View>
-                        ) : (
-                            <TouchableOpacity style={invStyles.generateBtn} onPress={handleGenerate} disabled={isGenerating}>
-                                {isGenerating ? (
-                                    <ActivityIndicator color="black" size="small" />
+
+                            <ScrollView
+                                style={{ paddingBottom: 40 }}
+                                contentContainerStyle={invStyles.body}
+                                keyboardShouldPersistTaps="handled"
+                                keyboardDismissMode="interactive"
+                                showsVerticalScrollIndicator={false}
+                            >
+                                <Text style={invStyles.sectionLabel}>Generate an invite link</Text>
+                                {generatedCode ? (
+                                    <View style={invStyles.codeBox}>
+                                        <Text style={invStyles.codeText}>{generatedCode}</Text>
+                                        <TouchableOpacity onPress={handleCopy} style={invStyles.copyBtn}>
+                                            <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={20} color={COLORS.primary} />
+                                            <Text style={invStyles.copyText}>{copied ? 'Copied!' : 'Copy'}</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 ) : (
-                                    <Text style={invStyles.generateText}>Generate Invite Code</Text>
+                                    <TouchableOpacity style={invStyles.generateBtn} onPress={handleGenerate} disabled={isGenerating}>
+                                        {isGenerating ? (
+                                            <ActivityIndicator color="black" size="small" />
+                                        ) : (
+                                            <Text style={invStyles.generateText}>Generate Invite Code</Text>
+                                        )}
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
-                        )}
 
-                        <TouchableOpacity
-                            style={[invStyles.shareBtn, !generatedCode && { opacity: 0.4 }]}
-                            onPress={handleShare}
-                            disabled={!generatedCode}
-                        >
-                            <Ionicons name="share-outline" size={20} color={COLORS.primary} />
-                            <Text style={invStyles.shareBtnText}>Share Invite Link</Text>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[invStyles.shareBtn, !generatedCode && { opacity: 0.4 }]}
+                                    onPress={handleShare}
+                                    disabled={!generatedCode}
+                                >
+                                    <Ionicons name="share-outline" size={20} color={COLORS.primary} />
+                                    <Text style={invStyles.shareBtnText}>Share Invite Link</Text>
+                                </TouchableOpacity>
 
-                        <View style={invStyles.divider}>
-                            <View style={invStyles.dividerLine} />
-                            <Text style={invStyles.dividerText}>OR</Text>
-                            <View style={invStyles.dividerLine} />
+                                <View style={invStyles.divider}>
+                                    <View style={invStyles.dividerLine} />
+                                    <Text style={invStyles.dividerText}>OR</Text>
+                                    <View style={invStyles.dividerLine} />
+                                </View>
+
+                                <Text style={invStyles.sectionLabel}>Have a code? Enter it below</Text>
+                                <TextInput
+                                    style={invStyles.input}
+                                    value={inviteCode}
+                                    onChangeText={setInviteCode}
+                                    placeholder="Enter invite code"
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    autoCapitalize="characters"
+                                    autoCorrect={false}
+                                    returnKeyType="done"
+                                    blurOnSubmit={false}
+                                    onSubmitEditing={() => handleAccept()}
+                                />
+                                <TouchableOpacity
+                                    style={[invStyles.acceptBtn, !inviteCode.trim() && { opacity: 0.4 }]}
+                                    onPress={handleAccept}
+                                    disabled={isAccepting || !inviteCode.trim()}
+                                >
+                                    {isAccepting ? (
+                                        <ActivityIndicator color={COLORS.primary} size="small" />
+                                    ) : (
+                                        <Text style={invStyles.acceptText}>Accept Invite</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </ScrollView>
                         </View>
-
-                        <Text style={invStyles.sectionLabel}>Have a code? Enter it below</Text>
-                        <TextInput
-                            style={invStyles.input}
-                            value={inviteCode}
-                            onChangeText={setInviteCode}
-                            placeholder="Enter invite code"
-                            placeholderTextColor="rgba(255,255,255,0.3)"
-                            autoCapitalize="characters"
-                        />
-                        <TouchableOpacity
-                            style={[invStyles.acceptBtn, !inviteCode.trim() && { opacity: 0.4 }]}
-                            onPress={handleAccept}
-                            disabled={isAccepting || !inviteCode.trim()}
-                        >
-                            {isAccepting ? (
-                                <ActivityIndicator color={COLORS.primary} size="small" />
-                            ) : (
-                                <Text style={invStyles.acceptText}>Accept Invite</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    </KeyboardAvoidingView>
                 </View>
-            </View>
+            </TouchableWithoutFeedback>
         </Modal>
     );
 };

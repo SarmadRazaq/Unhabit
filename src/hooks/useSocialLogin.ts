@@ -105,23 +105,11 @@ export const useSocialLogin = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            // Generate a nonce so Supabase can verify the id_token.
-            // The hashed nonce is embedded in the token by Google;
-            // the raw nonce is sent to Supabase for verification.
-            const nonceBytes = await Crypto.getRandomBytesAsync(32);
-            const nonce = Array.from(nonceBytes)
-                .map((b) => b.toString(16).padStart(2, '0'))
-                .join('');
-            const hashedNonce = await Crypto.digestStringAsync(
-                Crypto.CryptoDigestAlgorithm.SHA256,
-                nonce
-            );
-
-            const userInfo = await GoogleSignin.signIn({ nonce: hashedNonce });
+            const userInfo = await GoogleSignin.signIn();
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                await loginWithGoogle({ idToken, nonce }).unwrap();
+                await loginWithGoogle({ idToken }).unwrap();
                 return true;
             } else {
                 if (__DEV__) console.error('No ID token present');

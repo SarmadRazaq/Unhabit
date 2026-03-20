@@ -105,11 +105,13 @@ export const useSocialLogin = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
+            // Generate nonce for iOS (Google on iOS embeds it in the JWT).
+            // Android's Google Sign-In SDK does NOT embed the nonce in the JWT,
+            // so we decode the token and only forward the nonce when it is present.
             const nonceBytes = await Crypto.getRandomBytesAsync(32);
             const rawNonce = Array.from(nonceBytes)
                 .map((b) => b.toString(16).padStart(2, '0'))
                 .join('');
-
             const hashedNonce = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256,
                 rawNonce
@@ -119,7 +121,22 @@ export const useSocialLogin = () => {
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                await loginWithGoogle({ idToken, nonce: rawNonce }).unwrap();
+                // Check whether the JWT actually contains a nonce claim.
+                // Supabase requires the nonce to be present in BOTH the token
+                // and the signInWithIdToken call, or absent from BOTH.
+                let tokenHasNonce = false;
+                try {
+                    const base64Payload = idToken.split('.')[1]
+                        .replace(/-/g, '+')
+                        .replace(/_/g, '/');
+                    const payload = JSON.parse(atob(base64Payload));
+                    tokenHasNonce = !!payload.nonce;
+                } catch { /* treat as no nonce on parse error */ }
+
+                await loginWithGoogle({
+                    idToken,
+                    nonce: tokenHasNonce ? rawNonce : undefined,
+                }).unwrap();
                 return true;
             } else {
                 if (__DEV__) console.error('No ID token present');

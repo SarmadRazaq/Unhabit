@@ -258,7 +258,7 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                             onRefresh={onRefresh}
                             tintColor={COLORS.primary}
                             colors={[COLORS.primary]}
-                            progressBackgroundColor={COLORS.surface}
+                            progressBackgroundColor={COLORS.backgroundDark}
                         />
                     }
                 >
@@ -306,7 +306,7 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                         onRefresh={onRefresh}
                         tintColor={COLORS.primary}
                         colors={[COLORS.primary]}
-                        progressBackgroundColor={COLORS.surface}
+                        progressBackgroundColor={COLORS.backgroundDark}
                     />
                 }
             >

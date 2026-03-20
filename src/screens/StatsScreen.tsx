@@ -645,7 +645,7 @@ const XPProgressChart = ({ data, onPress }: XPProgressChartProps) => {
     const chartWidth = CARD_WIDTH - 40;
     const chartHeight = 140;
     const { totalXP, currentLevel, xpForNextLevel, currentLevelXP, dailyXP } = data;
-    const levelProgress = (currentLevelXP / xpForNextLevel) * 100;
+    const levelProgress = xpForNextLevel > 0 ? (currentLevelXP / xpForNextLevel) * 100 : 0;
     
     // Calculate cumulative XP for the chart
     const cumulativeXP = dailyXP.reduce((acc: number[], xp, i) => {
@@ -1153,7 +1153,7 @@ interface BadgeItemComponentProps {
 const BadgeItem = ({ badge, onPress }: BadgeItemComponentProps) => {
     const { name, status, daysRequired, daysCompleted, badgeType } = badge;
     const daysLeft = daysRequired - daysCompleted;
-    const progress = (daysCompleted / daysRequired) * 100;
+    const progress = daysRequired > 0 ? (daysCompleted / daysRequired) * 100 : 0;
     
     const getBadgeColors = (): [string, string] => {
         switch (badgeType) {

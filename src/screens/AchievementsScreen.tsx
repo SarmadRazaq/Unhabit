@@ -296,7 +296,7 @@ const XPLevelSummaryCard = ({ stats, onPress }: XPLevelSummaryCardProps) => {
                 {/* Progress Bar */}
                 <View style={summaryStyles.progressSection}>
                     <View style={summaryStyles.progressBar}>
-                        <View style={[summaryStyles.progressFill, { width: `${(stats.currentLevelXP / stats.xpToNextLevel) * 100}%` }]} />
+                        <View style={[summaryStyles.progressFill, { width: `${stats.xpToNextLevel > 0 ? (stats.currentLevelXP / stats.xpToNextLevel) * 100 : 0}%` }]} />
                         {/* Section markers */}
                         <View style={[summaryStyles.sectionMarker, { left: '10%' }]} />
                         <View style={[summaryStyles.sectionMarker, { left: '27%' }]} />

@@ -105,11 +105,21 @@ export const useSocialLogin = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            const userInfo = await GoogleSignin.signIn();
+            const nonceBytes = await Crypto.getRandomBytesAsync(32);
+            const rawNonce = Array.from(nonceBytes)
+                .map((b) => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            const hashedNonce = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce
+            );
+
+            const userInfo = await GoogleSignin.signIn({ nonce: hashedNonce });
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                await loginWithGoogle({ idToken }).unwrap();
+                await loginWithGoogle({ idToken, nonce: rawNonce }).unwrap();
                 return true;
             } else {
                 if (__DEV__) console.error('No ID token present');

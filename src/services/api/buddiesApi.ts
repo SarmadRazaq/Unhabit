@@ -78,9 +78,13 @@ export const buddiesApi = apiSlice.injectEndpoints({
             providesTags: ['Buddies'],
         }),
         nudgeBuddy: builder.mutation({
-            query: (id) => ({
-                url: `/buddies/${id}/nudge`,
+            query: ({ id, message }: { id: string; message: string }) => ({
+                url: `/buddies/${encodeURIComponent(id)}/nudge`,
                 method: 'POST',
+                body: {
+                    buddy_id: id,
+                    message,
+                },
             }),
             invalidatesTags: ['Buddies'],
         }),

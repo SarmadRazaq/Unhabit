@@ -16,6 +16,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, SPACING } from '../constants/theme';
 import { useGetBuddyProfileQuery, useNudgeBuddyMutation, useRemoveBuddyMutation } from '../services/api/buddiesApi';
 import { useThemedAlert } from '../components/common/ThemedAlert';
+import { extractImageUri } from '../utils';
 
 // ============================================================================
 // STAT CARD
@@ -77,7 +78,7 @@ const BuddyProfileScreen = () => {
         );
     };
 
-    const avatarUri = buddyAvatar || profile?.avatar_url
+    const avatarUri = extractImageUri(buddyAvatar) || extractImageUri(profile?.avatar_url)
         || `https://ui-avatars.com/api/?name=${encodeURIComponent(buddyName)}&background=2CE8C6&color=000`;
 
     return (

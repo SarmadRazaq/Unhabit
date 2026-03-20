@@ -34,6 +34,7 @@ type BuddyStatus = 'pending' | 'completed' | 'missed';
 
 interface Buddy {
     id: string;
+    nudgeTargetId: string;
     name: string;
     avatar: string;
     streak: number;
@@ -51,6 +52,20 @@ const extractInviteCode = (value: unknown): string | null => {
 
     const tokenMatch = trimmed.match(/[A-Za-z0-9_-]{8,}/);
     return tokenMatch?.[0] ?? null;
+};
+
+const isIncomingInvite = (invite: any): boolean => {
+    const direction = typeof invite?.direction === 'string' ? invite.direction.toLowerCase() : '';
+    const type = typeof invite?.type === 'string' ? invite.type.toLowerCase() : '';
+    const role = typeof invite?.role === 'string' ? invite.role.toLowerCase() : '';
+
+    if (direction === 'incoming' || direction === 'received') return true;
+    if (type === 'incoming' || type === 'received') return true;
+    if (role === 'receiver' || role === 'invitee') return true;
+    if (invite?.incoming === true || invite?.received === true) return true;
+    if (invite?.is_sender === false || invite?.sent_by_me === false) return true;
+
+    return false;
 };
 
 // Mock buddy data removed — real data from API
@@ -246,7 +261,7 @@ const InviteBuddyModal = ({ visible, onClose, onInvite, onAcceptCode }: {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                 <View style={invStyles.overlay}>
                     <KeyboardAvoidingView
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, justifyContent: 'flex-end' }}
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                         keyboardVerticalOffset={0}
                     >
@@ -308,6 +323,7 @@ const InviteBuddyModal = ({ visible, onClose, onInvite, onAcceptCode }: {
                                     placeholderTextColor="rgba(255,255,255,0.3)"
                                     autoCapitalize="characters"
                                     autoCorrect={false}
+                                    autoFocus
                                     returnKeyType="done"
                                     blurOnSubmit={false}
                                     onSubmitEditing={() => handleAccept()}
@@ -331,6 +347,70 @@ const InviteBuddyModal = ({ visible, onClose, onInvite, onAcceptCode }: {
         </Modal>
     );
 };
+
+const NudgeModal = ({
+    visible,
+    buddyName,
+    message,
+    isSending,
+    onChangeMessage,
+    onClose,
+    onSend,
+}: {
+    visible: boolean;
+    buddyName: string;
+    message: string;
+    isSending: boolean;
+    onChangeMessage: (value: string) => void;
+    onClose: () => void;
+    onSend: () => void;
+}) => (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={invStyles.overlay}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1, justifyContent: 'flex-end' }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={0}
+                >
+                    <View style={invStyles.container}>
+                        <View style={invStyles.header}>
+                            <Text style={invStyles.title}>Send Nudge</Text>
+                            <TouchableOpacity onPress={onClose}>
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={invStyles.body}>
+                            <Text style={invStyles.sectionLabel}>Message to {buddyName}</Text>
+                            <TextInput
+                                style={[invStyles.input, styles.nudgeMessageInput]}
+                                value={message}
+                                onChangeText={onChangeMessage}
+                                placeholder="Write a short encouragement..."
+                                placeholderTextColor="rgba(255,255,255,0.3)"
+                                autoFocus
+                                multiline
+                                maxLength={220}
+                                textAlignVertical="top"
+                            />
+                            <TouchableOpacity
+                                style={[invStyles.generateBtn, !message.trim() && { opacity: 0.4 }]}
+                                onPress={onSend}
+                                disabled={isSending || !message.trim()}
+                            >
+                                {isSending ? (
+                                    <ActivityIndicator color="black" size="small" />
+                                ) : (
+                                    <Text style={invStyles.generateText}>Send Nudge</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </View>
+        </TouchableWithoutFeedback>
+    </Modal>
+);
 
 const invStyles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
@@ -382,6 +462,10 @@ const BuddiesScreen = () => {
     const { alert } = useThemedAlert();
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
+    const [showNudgeModal, setShowNudgeModal] = useState(false);
+    const [selectedBuddy, setSelectedBuddy] = useState<Buddy | null>(null);
+    const [nudgeMessage, setNudgeMessage] = useState('');
+    const [isSendingNudge, setIsSendingNudge] = useState(false);
 
     // API hooks
     const { data: buddiesApiData, isLoading: buddiesLoading, isError: buddiesError } = useGetBuddiesQuery(undefined);
@@ -399,23 +483,45 @@ const BuddiesScreen = () => {
 
     // Map API data to Buddy interface
     const buddies: Buddy[] = (Array.isArray(buddiesApiData) ? buddiesApiData : []).map((b: any) => ({
-        id: b.buddy_link_id ?? b.id,
+        id: String(b.buddy_link_id ?? b.id ?? b.buddy_id ?? b.user_id ?? ''),
+        nudgeTargetId: String(b.buddy_id ?? b.user_id ?? b.id ?? b.buddy_link_id ?? ''),
         name: b.buddy_name ?? b.name ?? 'Buddy',
         avatar: b.buddy_avatar ?? b.avatar ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(b.buddy_name ?? 'B')}&background=2CE8C6&color=000`,
         streak: b.streak_days ?? b.streak ?? 0,
         status: (b.daily_status?.toLowerCase() ?? b.status ?? 'pending') as BuddyStatus,
     }));
 
-    const handleNudge = async (buddy: Buddy) => {
+    const openNudgeModal = (buddy: Buddy) => {
+        setSelectedBuddy(buddy);
+        setNudgeMessage(`Hey ${buddy.name}, don't forget today's habit check-in 👋`);
+        setShowNudgeModal(true);
+    };
+
+    const handleSendNudge = async () => {
+        if (!selectedBuddy) return;
         try {
-            await nudgeBuddy(buddy.id).unwrap();
+            if (!selectedBuddy.nudgeTargetId) {
+                throw new Error('Missing buddy id for nudge');
+            }
+            setIsSendingNudge(true);
+            await nudgeBuddy({
+                id: selectedBuddy.nudgeTargetId,
+                message: nudgeMessage.trim(),
+            }).unwrap();
+            setShowNudgeModal(false);
             alert(
                 'Nudge Sent! 👋',
-                `You've sent a friendly nudge to ${buddy.name} to remind them about their habits!`,
+                `You've sent a friendly nudge to ${selectedBuddy.name} to remind them about their habits!`,
                 [{ text: 'OK' }]
             );
-        } catch {
-            alert('Error', 'Failed to send nudge. Please try again.');
+        } catch (err: any) {
+            const message =
+                err?.data?.message
+                || err?.data?.error
+                || 'Failed to send nudge. Please try again.';
+            alert('Error', message);
+        } finally {
+            setIsSendingNudge(false);
         }
     };
 
@@ -452,6 +558,26 @@ const BuddiesScreen = () => {
                 },
             },
         ]);
+    };
+
+    const handleAcceptPendingInvite = async (invite: any) => {
+        try {
+            const inviteCode =
+                extractInviteCode(invite?.invite_code)
+                ?? extractInviteCode(invite?.code)
+                ?? extractInviteCode(invite?.invite_url)
+                ?? extractInviteCode(invite?.url);
+
+            if (!inviteCode) {
+                alert('Error', 'Invite code not found for this request.');
+                return;
+            }
+
+            await acceptInvite(inviteCode).unwrap();
+            alert('Success! 🎉', 'Buddy added successfully!');
+        } catch {
+            alert('Error', 'Failed to accept invite. Please try again.');
+        }
     };
 
     const handleInviteBuddy = () => setShowInvite(true);
@@ -543,7 +669,7 @@ const BuddiesScreen = () => {
                                 <BuddyCard
                                     key={buddy.id}
                                     buddy={buddy}
-                                    onNudge={() => handleNudge(buddy)}
+                                    onNudge={() => openNudgeModal(buddy)}
                                     onViewProfile={() => handleViewProfile(buddy)}
                                 />
                             ))
@@ -562,20 +688,41 @@ const BuddiesScreen = () => {
                                             </Text>
                                         </View>
                                         <View style={styles.pendingInviteActions}>
-                                            <TouchableOpacity
-                                                style={styles.resendButton}
-                                                onPress={() => handleResendInvite(inv.id)}
-                                            >
-                                                <Ionicons name="refresh-outline" size={16} color={COLORS.primary} />
-                                                <Text style={styles.resendButtonText}>Resend</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={styles.cancelInviteButton}
-                                                onPress={() => handleCancelInvite(inv.id)}
-                                            >
-                                                <Ionicons name="close-circle-outline" size={16} color="#FF4C0D" />
-                                                <Text style={styles.cancelInviteButtonText}>Cancel</Text>
-                                            </TouchableOpacity>
+                                            {isIncomingInvite(inv) ? (
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={styles.resendButton}
+                                                        onPress={() => handleAcceptPendingInvite(inv)}
+                                                    >
+                                                        <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.primary} />
+                                                        <Text style={styles.resendButtonText}>Accept</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={styles.cancelInviteButton}
+                                                        onPress={() => handleCancelInvite(inv.id)}
+                                                    >
+                                                        <Ionicons name="close-circle-outline" size={16} color="#FF4C0D" />
+                                                        <Text style={styles.cancelInviteButtonText}>Decline</Text>
+                                                    </TouchableOpacity>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={styles.resendButton}
+                                                        onPress={() => handleResendInvite(inv.id)}
+                                                    >
+                                                        <Ionicons name="refresh-outline" size={16} color={COLORS.primary} />
+                                                        <Text style={styles.resendButtonText}>Resend</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={styles.cancelInviteButton}
+                                                        onPress={() => handleCancelInvite(inv.id)}
+                                                    >
+                                                        <Ionicons name="close-circle-outline" size={16} color="#FF4C0D" />
+                                                        <Text style={styles.cancelInviteButtonText}>Cancel</Text>
+                                                    </TouchableOpacity>
+                                                </>
+                                            )}
                                         </View>
                                     </View>
                                 ))}
@@ -607,6 +754,15 @@ const BuddiesScreen = () => {
                 onClose={() => setShowInvite(false)}
                 onInvite={handleGenerateInvite}
                 onAcceptCode={handleAcceptCode}
+            />
+            <NudgeModal
+                visible={showNudgeModal}
+                buddyName={selectedBuddy?.name ?? 'Buddy'}
+                message={nudgeMessage}
+                isSending={isSendingNudge}
+                onChangeMessage={setNudgeMessage}
+                onClose={() => setShowNudgeModal(false)}
+                onSend={handleSendNudge}
             />
 
             {/* Leaderboard Modal */}
@@ -1004,6 +1160,11 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '500',
         color: '#FF4C0D',
+    },
+    nudgeMessageInput: {
+        minHeight: 120,
+        textAlign: 'left',
+        letterSpacing: 0,
     },
 });
 

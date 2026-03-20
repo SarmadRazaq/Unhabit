@@ -2,4 +2,5 @@
 // Export all utilities from here
 
 export * from './date';
+export * from './image';
 

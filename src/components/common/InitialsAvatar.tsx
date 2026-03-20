@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { COLORS } from '../../constants/theme';
+import { extractImageUri } from '../../utils';
 
 interface InitialsAvatarProps {
-    uri?: string | null;
+    uri?: unknown;
     name?: string | null;
     email?: string | null;
     size?: number;
@@ -23,17 +24,18 @@ const getInitials = (name?: string | null, email?: string | null): string => {
 
 export const InitialsAvatar = ({ uri, name, email, size = 40, style }: InitialsAvatarProps) => {
     const [imageFailed, setImageFailed] = useState(false);
+    const imageUri = useMemo(() => extractImageUri(uri), [uri]);
 
     useEffect(() => {
         setImageFailed(false);
-    }, [uri]);
+    }, [imageUri]);
 
     const initials = useMemo(() => getInitials(name, email), [name, email]);
-    const hasImage = !!uri && !imageFailed;
+    const hasImage = !!imageUri && !imageFailed;
 
     return hasImage ? (
         <Image
-            source={{ uri: uri as string }}
+            source={{ uri: imageUri as string }}
             style={[
                 {
                     width: size,

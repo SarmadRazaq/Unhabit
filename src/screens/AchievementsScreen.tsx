@@ -56,6 +56,27 @@ interface LeaderboardStats {
     totalParticipants: number;
 }
 
+const inferBadgeType = (badge: any): Badge['type'] => {
+    const explicitTier = String(badge?.badge_definitions?.tier ?? badge?.tier ?? '').toLowerCase();
+    if (explicitTier === 'gold' || explicitTier === 'silver' || explicitTier === 'bronze') {
+        return explicitTier as Badge['type'];
+    }
+
+    const category = String(badge?.badge_definitions?.category ?? badge?.category ?? '').toLowerCase();
+    const name = String(badge?.badge_definitions?.name ?? badge?.name ?? '').toLowerCase();
+    const fingerprint = `${category} ${name}`;
+
+    if (fingerprint.includes('xp') || fingerprint.includes('level')) return 'silver';
+    if (fingerprint.includes('task') || fingerprint.includes('streak') || fingerprint.includes('day')) return 'gold';
+    if (fingerprint.includes('social') || fingerprint.includes('buddy') || fingerprint.includes('community')) return 'bronze';
+
+    // Stable fallback so badges don't all look the same when tier is missing.
+    const seed = name || category || 'badge';
+    const hash = seed.split('').reduce((acc: number, ch: string) => acc + ch.charCodeAt(0), 0);
+    const bucket = hash % 3;
+    return bucket === 0 ? 'gold' : bucket === 1 ? 'silver' : 'bronze';
+};
+
 // ============================================================================
 // DEFAULT DATA (empty state — real data comes from API hooks)
 // ============================================================================
@@ -177,21 +198,38 @@ const DiamondBadge = ({ type, size, isLocked = false }: DiamondBadgeProps) => {
     const getColors = (): [string, string, string, string] => {
         switch (type) {
             case 'silver':
-                return ['#7A96AC', '#EAEFF3', '#C2D4E1', '#FFFFFF'];
+                return ['#8EA2B8', '#F4F8FC', '#C9D6E3', '#7C8FA5'];
             case 'bronze':
-                return ['#9E8976', '#F6D0AB', '#C99B70', '#9D774E'];
+                return ['#A66D3B', '#F2B37E', '#D3874B', '#8D562B'];
             case 'gold':
-                return ['#FBE67B', '#FCFBE7', '#F7D14E', '#D4A041'];
+                return ['#E5B800', '#FFF2A6', '#F7D14E', '#A87A00'];
             default:
-                return ['#7A96AC', '#EAEFF3', '#C2D4E1', '#FFFFFF'];
+                return ['#8EA2B8', '#F4F8FC', '#C9D6E3', '#7C8FA5'];
+        }
+    };
+
+    const getFrameStyle = () => {
+        switch (type) {
+            case 'gold':
+                return { backgroundColor: 'rgba(255, 204, 0, 0.16)', borderColor: 'rgba(255, 204, 0, 0.45)' };
+            case 'bronze':
+                return { backgroundColor: 'rgba(216, 130, 65, 0.16)', borderColor: 'rgba(216, 130, 65, 0.45)' };
+            case 'silver':
+            default:
+                return { backgroundColor: 'rgba(166, 184, 205, 0.16)', borderColor: 'rgba(166, 184, 205, 0.45)' };
         }
     };
     
     const colors = getColors();
+    const frameStyle = getFrameStyle();
+    const iconName =
+        type === 'gold' ? 'flame' :
+        type === 'bronze' ? 'people' :
+        'flash';
     
     return (
-        <View style={diamondStyles.container}>
-            <View style={[diamondStyles.outerDiamond, { opacity: isLocked ? 0.4 : 1 }]}>
+        <View style={[diamondStyles.container, frameStyle, isLocked && { opacity: 0.8 }]}>
+            <View style={[diamondStyles.outerDiamond, isLocked && { opacity: 0.65 }]}>
                 <LinearGradient
                     colors={colors}
                     start={{ x: 0, y: 0 }}
@@ -199,6 +237,11 @@ const DiamondBadge = ({ type, size, isLocked = false }: DiamondBadgeProps) => {
                     style={diamondStyles.diamondGradient}
                 />
             </View>
+            {!isLocked && (
+                <View style={diamondStyles.typeIcon}>
+                    <Ionicons name={iconName} size={11} color="rgba(0,0,0,0.75)" />
+                </View>
+            )}
             {isLocked && (
                 <View style={diamondStyles.lockIcon}>
                     <Ionicons name="lock-closed" size={16} color="white" />
@@ -214,8 +257,8 @@ const diamondStyles = StyleSheet.create({
         height: 54,
         backgroundColor: 'rgba(44, 232, 198, 0.1)',
         borderRadius: 8,
-        borderWidth: 0.8,
-        borderColor: 'rgba(44, 232, 198, 0.1)',
+        borderWidth: 1.2,
+        borderColor: 'rgba(44, 232, 198, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -233,6 +276,17 @@ const diamondStyles = StyleSheet.create({
     },
     lockIcon: {
         position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    typeIcon: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: 'rgba(255,255,255,0.75)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1103,11 +1157,7 @@ const AchievementsScreen = () => {
             id: b.badge_id ?? b.id,
             name: b.badge_definitions?.name ?? b.name ?? 'Badge',
             description: b.badge_definitions?.description ?? b.description ?? '',
-            type: (b.badge_definitions?.tier === 'gold' || b.tier === 'gold'
-                ? 'gold'
-                : b.badge_definitions?.tier === 'bronze' || b.tier === 'bronze'
-                    ? 'bronze'
-                    : 'silver') as Badge['type'],
+            type: inferBadgeType(b),
             isLocked,
             unlockedAt: b.earned_at,
             requirement: b.badge_definitions?.category ?? b.category ?? '',

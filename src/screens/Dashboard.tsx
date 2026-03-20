@@ -289,7 +289,28 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
     const xp = dashboardData?.xp ?? { today: 0, total: 0, level: 1 };
     const nextBadge = dashboardData?.rewards?.next_badge ?? badgeGalleryData?.locked?.[0] ?? null;
     const nextBadgeName = nextBadge?.name ?? nextBadge?.badge_definitions?.name ?? null;
-    const checklistItems = dashboardData?.todays_checklist ?? [];
+    const rawChecklistItems = Array.isArray(dashboardData?.todays_checklist) ? dashboardData.todays_checklist : [];
+    const dayCompleted =
+        dashboardData?.journey?.completed_today === true
+        || dashboardData?.completed_today === true
+        || dashboardData?.streak?.completed_today === true;
+    const checklistItems = rawChecklistItems.map((item: any) => {
+        const normalizedCompleted =
+            dayCompleted
+            || item?.completed === true
+            || item?.is_completed === true
+            || item?.status === 'completed'
+            || item?.status === 'done'
+            || item?.status === 'complete'
+            || (typeof item?.progress === 'number' && item.progress >= 100)
+            || !!item?.completed_at
+            || !!item?.done_at;
+
+        return {
+            ...item,
+            completed: normalizedCompleted,
+        };
+    });
     const journey = dashboardData?.journey ?? { current_day: 1, total_days: 21 };
 
     return (

@@ -79,6 +79,7 @@ interface BadgeData {
     name: string;
     daysRequired: number;
     daysCompleted: number;
+    progressUnit: 'days' | 'xp';
     status: 'unlocked' | 'inProgress' | 'locked';
     badgeType: 'silver' | 'bronze' | 'gold';
 }
@@ -1151,9 +1152,10 @@ interface BadgeItemComponentProps {
 }
 
 const BadgeItem = ({ badge, onPress }: BadgeItemComponentProps) => {
-    const { name, status, daysRequired, daysCompleted, badgeType } = badge;
+    const { name, status, daysRequired, daysCompleted, badgeType, progressUnit } = badge;
     const daysLeft = daysRequired - daysCompleted;
     const progress = daysRequired > 0 ? (daysCompleted / daysRequired) * 100 : 0;
+    const unitLabel = progressUnit === 'xp' ? 'XP' : 'day';
     
     const getBadgeColors = (): [string, string] => {
         switch (badgeType) {
@@ -1220,7 +1222,7 @@ const BadgeItem = ({ badge, onPress }: BadgeItemComponentProps) => {
                     status === 'locked' && badgeStyles.statusLocked,
                 ]}>
                     {status === 'unlocked' ? 'Unlocked' : 
-                     status === 'inProgress' ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` : 
+                     status === 'inProgress' ? `${daysLeft} ${unitLabel}${daysLeft !== 1 ? 's' : ''} left` : 
                      'Locked'}
                 </Text>
                 <Ionicons 
@@ -1408,6 +1410,12 @@ const StatsScreen = () => {
                     name: b.name ?? 'Badge',
                     daysRequired: b.required ?? 0,
                     daysCompleted: b.current ?? 0,
+                    progressUnit: (() => {
+                        const category = String(b.category ?? '').toLowerCase();
+                        const name = String(b.name ?? '').toLowerCase();
+                        if (category.includes('xp') || name.includes('xp')) return 'xp';
+                        return 'days';
+                    })(),
                     status: b.earned ? 'unlocked' : (b.progress > 0 ? 'inProgress' : 'locked'),
                     badgeType: b.tier === 'gold' ? 'gold' : b.tier === 'bronze' ? 'bronze' : 'silver',
                 });
@@ -1513,13 +1521,14 @@ const StatsScreen = () => {
     
     const handleBadgePress = (badge: BadgeData) => {
         const progressPercent = Math.round((badge.daysCompleted / badge.daysRequired) * 100);
+        const unitLabel = badge.progressUnit === 'xp' ? 'XP' : 'days';
         alert(
             badge.name,
             badge.status === 'unlocked'
-                ? `🎉 Congratulations! You've unlocked this badge!\n\nCompleted: ${badge.daysCompleted}/${badge.daysRequired} days`
+                ? `🎉 Congratulations! You've unlocked this badge!\n\nCompleted: ${badge.daysCompleted}/${badge.daysRequired} ${unitLabel}`
                 : badge.status === 'inProgress'
-                    ? `📈 Progress: ${progressPercent}%\n\n${badge.daysCompleted}/${badge.daysRequired} days completed\n\n${badge.daysRequired - badge.daysCompleted} more days to unlock!`
-                    : `🔒 This badge is locked.\n\nComplete ${badge.daysRequired} days to unlock!`,
+                    ? `📈 Progress: ${progressPercent}%\n\n${badge.daysCompleted}/${badge.daysRequired} ${unitLabel} completed\n\n${badge.daysRequired - badge.daysCompleted} more ${unitLabel} to unlock!`
+                    : `🔒 This badge is locked.\n\nComplete ${badge.daysRequired} ${unitLabel} to unlock!`,
             [{ text: 'OK' }]
         );
     };

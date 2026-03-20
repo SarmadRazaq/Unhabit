@@ -27,7 +27,7 @@ import { useRequestExportMutation } from '../services/api/settingsApi';
 import { useGetDashboardQuery } from '../services/api/homeApi';
 import { useAppDispatch } from '../store/hooks';
 import { useThemedAlert } from '../components/common/ThemedAlert';
-import { formatMonthYear } from '../utils';
+import { extractImageUri, formatMonthYear } from '../utils';
 
 interface JourneyLite {
     start_date?: string;
@@ -112,7 +112,7 @@ export const ProfileScreen = () => {
     const profile = {
         name: resolvedName,
         email: resolvedEmail,
-        avatarUrl: meData?.profile?.avatar_url ?? meData?.user?.avatar_url ?? null,
+        avatarUrl: extractImageUri(meData?.profile?.avatar_url) ?? extractImageUri(meData?.user?.avatar_url),
         initials: profileInitials,
         levelName: getLevelName(levelData?.level ?? 1),
         currentStreak: streakData?.current_streak ?? 0,

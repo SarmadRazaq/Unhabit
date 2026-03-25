@@ -7,6 +7,7 @@ import {
     Platform,
     Share,
     Keyboard,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -278,14 +279,12 @@ const renderInputToolbar = (props: any) => (
 
 // Custom Composer
 const renderComposer = (props: any) => (
-    <View style={styles.composerContainer}>
-        <Composer
-            {...props}
-            textInputStyle={styles.textInput}
-            placeholder="Type message"
-            placeholderTextColor="#585858"
-        />
-    </View>
+    <Composer
+        {...props}
+        textInputStyle={styles.textInput}
+        placeholder="Type message"
+        placeholderTextColor="#585858"
+    />
 );
 
 // Custom Send Button
@@ -582,7 +581,11 @@ const ChatScreen = () => {
                 aiStatus={aiStatusText}
             />
 
-            <View style={styles.keyboardAvoidingView}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.keyboardAvoidingView}
+                keyboardVerticalOffset={insets.top}
+            >
                 <GiftedChat
                     messages={messages}
                     onSend={messages => onSend(messages)}
@@ -603,8 +606,8 @@ const ChatScreen = () => {
                         {
                             // Keep keyboard open while still allowing the list to scroll.
                             // GiftedChat's typings don't include `keyboardDismissMode`, but the underlying list supports it.
-                            keyboardDismissMode: 'none',
-                            keyboardShouldPersistTaps: 'handled',
+                            keyboardDismissMode: 'interactive',
+                            keyboardShouldPersistTaps: 'always',
                             scrollEnabled: true,
                             ListFooterComponent: () => renderChatHeader(
                                 challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
@@ -625,9 +628,15 @@ const ChatScreen = () => {
                         autoCapitalize: 'sentences',
                         returnKeyType: 'send',
                         blurOnSubmit: false,
+                        placeholderTextColor: '#585858',
+                        selectionColor: COLORS.primary,
+                        // Ensure typed text is visible with our dark composer background.
+                        style: {
+                            color: COLORS.white,
+                        },
                     }}
                 />
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -803,6 +812,10 @@ const styles = StyleSheet.create({
         paddingTop: 0,
         paddingBottom: 0,
         lineHeight: 20,
+        paddingHorizontal: 0,
+        textAlignVertical: 'center',
+        backgroundColor: 'transparent',
+        includeFontPadding: false,
     },
     attachButton: {
         marginLeft: 8,

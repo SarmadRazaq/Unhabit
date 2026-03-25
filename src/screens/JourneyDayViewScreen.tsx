@@ -8,6 +8,8 @@ import {
     ActivityIndicator,
     Modal,
     TextInput,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -29,6 +31,7 @@ import {
     useCompleteTaskMutation,
     useUncompleteTaskMutation,
     useCreateReflectionMutation,
+    useGetReflectionsQuery,
     useReportSlipMutation,
 } from '../services/api/progressApi';
 
@@ -96,49 +99,60 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Daily Reflection</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={28} color="white" />
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Daily Reflection</Text>
+                            <TouchableOpacity onPress={onClose}>
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            bounces={false}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalBody}>
+                                <Text style={styles.inputLabel}>How are you feeling?</Text>
+                                <View style={styles.moodRow}>
+                                    {moods.map(m => (
+                                        <TouchableOpacity
+                                            key={m}
+                                            style={[styles.moodBtn, mood === m && styles.moodBtnSelected]}
+                                            onPress={() => setMood(m)}
+                                        >
+                                            <Text style={styles.moodEmoji}>{m}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <Text style={styles.inputLabel}>Reflection</Text>
+                                <TextInput
+                                    style={[styles.textInput, styles.textArea]}
+                                    value={text}
+                                    onChangeText={setText}
+                                    placeholder="How did today go? What did you learn?"
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    multiline
+                                />
+                            </View>
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={[styles.saveButton, (!text.trim() || isLoading) && styles.saveButtonDisabled]}
+                            disabled={!text.trim() || isLoading}
+                            onPress={() => onSave({ journeyDayId: dayId, mood, text: text.trim() })}
+                        >
+                            {isLoading ? <ActivityIndicator color="black" /> : (
+                                <Text style={styles.saveButtonText}>Save Reflection</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.modalBody}>
-                        <Text style={styles.inputLabel}>How are you feeling?</Text>
-                        <View style={styles.moodRow}>
-                            {moods.map(m => (
-                                <TouchableOpacity
-                                    key={m}
-                                    style={[styles.moodBtn, mood === m && styles.moodBtnSelected]}
-                                    onPress={() => setMood(m)}
-                                >
-                                    <Text style={styles.moodEmoji}>{m}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Text style={styles.inputLabel}>Reflection</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            value={text}
-                            onChangeText={setText}
-                            placeholder="How did today go? What did you learn?"
-                            placeholderTextColor="rgba(255,255,255,0.3)"
-                            multiline
-                        />
-                    </View>
-                    <TouchableOpacity
-                        style={[styles.saveButton, (!text.trim() || isLoading) && styles.saveButtonDisabled]}
-                        disabled={!text.trim() || isLoading}
-                        onPress={() => onSave({ journeyDayId: dayId, mood, text: text.trim() })}
-                    >
-                        {isLoading ? <ActivityIndicator color="black" /> : (
-                            <Text style={styles.saveButtonText}>Save Reflection</Text>
-                        )}
-                    </TouchableOpacity>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 };
@@ -244,6 +258,7 @@ const JourneyDayViewScreen = () => {
     const [uncompleteTask] = useUncompleteTaskMutation();
     const [createReflection, { isLoading: reflectionLoading }] = useCreateReflectionMutation();
     const [reportSlip, { isLoading: slipLoading }] = useReportSlipMutation();
+    const { data: savedReflectionData, refetch: refetchReflection } = useGetReflectionsQuery(dayId, { skip: !dayId });
     const [pauseJourney] = usePauseJourneyMutation();
     const [resumeJourney] = useResumeJourneyMutation();
 
@@ -301,6 +316,7 @@ const JourneyDayViewScreen = () => {
                 answers: data.mood ? { mood: data.mood } : undefined,
             }).unwrap();
             setShowReflection(false);
+            refetchReflection();
             alert('Saved! 📝', 'Your reflection has been recorded.');
         } catch {
             alert('Error', 'Failed to save reflection.');
@@ -512,7 +528,9 @@ const JourneyDayViewScreen = () => {
                 <View style={styles.actionRow}>
                     <TouchableOpacity style={styles.actionButton} onPress={() => setShowReflection(true)}>
                         <Ionicons name="journal-outline" size={20} color={COLORS.primary} />
-                        <Text style={styles.actionButtonText}>Write Reflection</Text>
+                        <Text style={styles.actionButtonText}>
+                            {(savedReflectionData as any)?.data?.content ? 'Edit Reflection' : 'Write Reflection'}
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.actionButton, styles.actionButtonDanger]}
@@ -522,6 +540,30 @@ const JourneyDayViewScreen = () => {
                         <Text style={[styles.actionButtonText, { color: '#FF6B6B' }]}>Report Slip</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Saved Reflection */}
+                {(() => {
+                    const reflection = (savedReflectionData as any)?.data;
+                    if (!reflection?.content) return null;
+                    const mood = reflection.answers?.mood as string | undefined;
+                    const date = reflection.updated_at ?? reflection.created_at;
+                    return (
+                        <View style={styles.reflectionCard}>
+                            <View style={styles.reflectionCardHeader}>
+                                <Ionicons name="journal" size={16} color={COLORS.primary} />
+                                <Text style={styles.reflectionCardTitle}>
+                                    {mood ? `${mood}  Day ${viewingDay} Reflection` : `Day ${viewingDay} Reflection`}
+                                </Text>
+                                {date && (
+                                    <Text style={styles.reflectionCardDate}>
+                                        {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </Text>
+                                )}
+                            </View>
+                            <Text style={styles.reflectionCardText}>{reflection.content}</Text>
+                        </View>
+                    );
+                })()}
 
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -668,6 +710,14 @@ const styles = StyleSheet.create({
     saveButton: { backgroundColor: COLORS.primary, marginHorizontal: 20, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
     saveButtonDisabled: { opacity: 0.5 },
     saveButtonText: { fontSize: 16, fontWeight: '600', color: 'black' },
+    reflectionCard: {
+        marginTop: 16, backgroundColor: 'rgba(44,232,198,0.06)', borderRadius: 12, padding: 16,
+        borderWidth: 1, borderColor: 'rgba(44,232,198,0.15)', gap: 10,
+    },
+    reflectionCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    reflectionCardTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.primary },
+    reflectionCardDate: { fontSize: 12, color: 'rgba(255,255,255,0.35)' },
+    reflectionCardText: { fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 22 },
 });
 
 export default JourneyDayViewScreen;

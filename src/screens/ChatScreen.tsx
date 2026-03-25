@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     Platform,
     Share,
-    KeyboardAvoidingView,
     Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -583,11 +582,7 @@ const ChatScreen = () => {
                 aiStatus={aiStatusText}
             />
 
-            <KeyboardAvoidingView
-                style={styles.keyboardAvoidingView}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            >
+            <View style={styles.keyboardAvoidingView}>
                 <GiftedChat
                     messages={messages}
                     onSend={messages => onSend(messages)}
@@ -627,7 +622,7 @@ const ChatScreen = () => {
                         blurOnSubmit: false,
                     }}
                 />
-            </KeyboardAvoidingView>
+            </View>
         </SafeAreaView>
     );
 };

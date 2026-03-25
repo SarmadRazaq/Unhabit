@@ -105,20 +105,24 @@ export const useSocialLogin = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            // @react-native-google-signin/google-signin v16 does not support custom nonces
-            // in signIn() — the native code ignores any nonce param.
-            // revokeAccess() fully tears down the existing Google OAuth session so the
-            // next signIn() issues a fresh ID token with no nonce claim. signOut() alone
-            // only clears the in-memory user; the underlying GIDSignIn session persists
-            // and can return a refreshed token that still carries an old nonce, causing
-            // Supabase to reject it ("nonce in id_token should either both exist or not").
-            try { await GoogleSignin.revokeAccess(); } catch { /* no-op if not signed in */ }
+            // Generate a nonce so GIDSignIn embeds SHA256(rawNonce) in the ID token
+            // and Supabase can verify it. The patch at
+            // patches/@react-native-google-signin+google-signin+16.1.2.patch wires the
+            // nonce through to signInWithPresentingViewController:nonce:hint:additionalScopes:
+            const nonceBytes = await Crypto.getRandomBytesAsync(32);
+            const rawNonce = Array.from(nonceBytes)
+                .map((b) => b.toString(16).padStart(2, '0'))
+                .join('');
+            const hashedNonce = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce
+            );
 
-            const userInfo = await GoogleSignin.signIn();
+            const userInfo = await (GoogleSignin.signIn as any)({ nonce: hashedNonce });
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                await loginWithGoogle({ idToken }).unwrap();
+                await loginWithGoogle({ idToken, nonce: rawNonce }).unwrap();
                 return true;
             } else {
                 if (__DEV__) console.error('No ID token present');

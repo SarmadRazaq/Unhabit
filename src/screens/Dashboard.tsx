@@ -205,6 +205,13 @@ interface Task {
     completed: boolean;
 }
 
+const getTaskId = (task: any): string | null => {
+    const value = task?.id ?? task?.task_id ?? task?.journey_task_id ?? task?.journey_day_task_id;
+    if (value === undefined || value === null) return null;
+    const normalized = String(value).trim();
+    return normalized.length > 0 ? normalized : null;
+};
+
 export const Dashboard = ({ navigation }: DashboardProps) => {
     const { data: dashboardData, isLoading, isError, error, refetch, isFetching } = useGetDashboardQuery(undefined);
     const { data: buddyData } = useGetBuddyQuickViewQuery(undefined);
@@ -295,6 +302,7 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
         || dashboardData?.completed_today === true
         || dashboardData?.streak?.completed_today === true;
     const checklistItems = rawChecklistItems.map((item: any) => {
+        const taskId = getTaskId(item);
         const normalizedCompleted =
             dayCompleted
             || item?.completed === true
@@ -308,6 +316,9 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
 
         return {
             ...item,
+            id: taskId,
+            title: item?.title ?? item?.name ?? item?.task_name ?? 'Task',
+            xp: item?.xp ?? item?.xp_reward ?? 10,
             completed: normalizedCompleted,
         };
     });
@@ -410,8 +421,8 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                                 <Text style={styles.checklistEmptySubtext}>Start a journey to get daily tasks</Text>
                             </View>
                         ) : (
-                            checklistItems.map((item: any) => (
-                                <View key={item.id} style={styles.checklistItem}>
+                            checklistItems.map((item: any, idx: number) => (
+                                <View key={item.id ?? `task-${idx}`} style={styles.checklistItem}>
                                     <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
                                         {item.completed && (
                                             <Ionicons name="checkmark" size={14} color={COLORS.black} />
@@ -465,23 +476,31 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                         try {
                             const uncompleted = checklistItems.filter((t: any) => !t.completed);
 
-                            let totalXpEarned = 0;
-                            let failedCount = 0;
-                            for (const task of uncompleted) {
-                                try {
-                                    const result = await completeTask(task.id).unwrap();
-                                    totalXpEarned += (result as any)?.xp_earned ?? 10;
-                                } catch (taskErr: any) {
-                                    failedCount++;
-                                    console.warn(`Task ${task.id} failed:`, taskErr);
-                                }
-                            }
+                            const results = await Promise.allSettled(
+                                uncompleted.map((task: any) => {
+                                    const taskId = getTaskId(task);
+                                    if (!taskId) return Promise.reject(new Error('missing id'));
+                                    return completeTask(taskId).unwrap();
+                                })
+                            );
+                            const totalXpEarned = results.reduce((sum, r) =>
+                                sum + (r.status === 'fulfilled' ? ((r.value as any)?.xp_earned ?? 10) : 0), 0);
+                            const failedCount = results.filter(r => r.status === 'rejected').length;
 
                             if (failedCount === uncompleted.length) {
                                 const msg = uncompleted.length === 1
                                     ? 'Failed to complete the task. Please try again.'
                                     : `All ${failedCount} tasks failed. Please try again.`;
                                 alert('Error', msg);
+                                setIsCompleting(false);
+                                return;
+                            }
+
+                            if (failedCount > 0) {
+                                alert(
+                                    'Some tasks were not completed',
+                                    `${failedCount} task${failedCount > 1 ? 's' : ''} could not be marked complete. Please tap Complete Today again.`,
+                                );
                                 setIsCompleting(false);
                                 return;
                             }

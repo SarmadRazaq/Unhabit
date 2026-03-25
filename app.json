@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sulemanahmadzai.Unhabit",
+      "buildNumber": "23",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -55,6 +56,7 @@
     },
     "owner": "sulemanahmadzai",
     "plugins": [
+      "./plugins/withGoogleSignInNonce",
       "expo-web-browser",
       "expo-location",
       "expo-notifications",
@@ -65,7 +67,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.253368686183-9paobkn0co5of0jesudk0t5ubvbn4npf"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

@@ -1,7 +1,7 @@
 diff --git a/ios/RNGoogleSignin.mm b/ios/RNGoogleSignin.mm
 --- a/ios/RNGoogleSignin.mm
 +++ b/ios/RNGoogleSignin.mm
-@@ -132,12 +132,20 @@
+@@ -132,12 +132,19 @@
        NSString* hint = options[@"loginHint"];
        NSArray* scopes = self.scopes;
 +      NSString* nonce = options[@"nonce"];

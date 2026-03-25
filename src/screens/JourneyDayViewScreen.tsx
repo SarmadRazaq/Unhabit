@@ -100,9 +100,8 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <KeyboardAvoidingView
-                style={{ flex: 1, justifyContent: 'flex-end' }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
@@ -116,7 +115,6 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
                             keyboardShouldPersistTaps="handled"
                             bounces={false}
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ flexGrow: 1 }}
                         >
                             <View style={styles.modalBody}>
                                 <Text style={styles.inputLabel}>How are you feeling?</Text>
@@ -142,16 +140,16 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
                                     multiline
                                 />
                             </View>
+                            <TouchableOpacity
+                                style={[styles.saveButton, styles.saveButtonInScroll, (!text.trim() || isLoading || !dayId) && styles.saveButtonDisabled]}
+                                disabled={!text.trim() || isLoading || !dayId}
+                                onPress={() => onSave({ journeyDayId: dayId, mood, text: text.trim() })}
+                            >
+                                {isLoading ? <ActivityIndicator color="black" /> : (
+                                    <Text style={styles.saveButtonText}>Save Reflection</Text>
+                                )}
+                            </TouchableOpacity>
                         </ScrollView>
-                        <TouchableOpacity
-                        style={[styles.saveButton, (!text.trim() || isLoading || !dayId) && styles.saveButtonDisabled]}
-                        disabled={!text.trim() || isLoading || !dayId}
-                            onPress={() => onSave({ journeyDayId: dayId, mood, text: text.trim() })}
-                        >
-                            {isLoading ? <ActivityIndicator color="black" /> : (
-                                <Text style={styles.saveButtonText}>Save Reflection</Text>
-                            )}
-                        </TouchableOpacity>
                     </View>
                 </View>
             </KeyboardAvoidingView>
@@ -173,64 +171,75 @@ const SlipModal = ({ visible, onClose, onReport, isLoading }: {
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Report a Slip</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={28} color="white" />
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.modalBody}>
-                        <Text style={styles.slipNote}>
-                            It's okay — slips happen. Tracking them helps you find patterns and recover faster. 💙
-                        </Text>
-
-                        <Text style={styles.inputLabel}>What triggered the slip?</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            value={trigger}
-                            onChangeText={setTrigger}
-                            placeholder="e.g., Stress, social pressure..."
-                            placeholderTextColor="rgba(255,255,255,0.3)"
-                        />
-
-                        <Text style={styles.inputLabel}>What happened?</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            value={reason}
-                            onChangeText={setReason}
-                            placeholder="Describe what happened..."
-                            placeholderTextColor="rgba(255,255,255,0.3)"
-                            multiline
-                        />
-
-                        <Text style={styles.inputLabel}>Severity</Text>
-                        <View style={styles.severityRow}>
-                            {(['minor', 'moderate', 'major'] as const).map(s => (
-                                <TouchableOpacity
-                                    key={s}
-                                    style={[styles.severityBtn, severity === s && styles.severityBtnSelected]}
-                                    onPress={() => setSeverity(s)}
-                                >
-                                    <Text style={[styles.severityText, severity === s && styles.severityTextSelected]}>
-                                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Report a Slip</Text>
+                            <TouchableOpacity onPress={onClose}>
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
                         </View>
+                        <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            bounces={false}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalBody}>
+                                <Text style={styles.slipNote}>
+                                    It's okay — slips happen. Tracking them helps you find patterns and recover faster. 💙
+                                </Text>
+
+                                <Text style={styles.inputLabel}>What triggered the slip?</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={trigger}
+                                    onChangeText={setTrigger}
+                                    placeholder="e.g., Stress, social pressure..."
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                />
+
+                                <Text style={styles.inputLabel}>What happened?</Text>
+                                <TextInput
+                                    style={[styles.textInput, styles.textArea]}
+                                    value={reason}
+                                    onChangeText={setReason}
+                                    placeholder="Describe what happened..."
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    multiline
+                                />
+
+                                <Text style={styles.inputLabel}>Severity</Text>
+                                <View style={styles.severityRow}>
+                                    {(['minor', 'moderate', 'major'] as const).map(s => (
+                                        <TouchableOpacity
+                                            key={s}
+                                            style={[styles.severityBtn, severity === s && styles.severityBtnSelected]}
+                                            onPress={() => setSeverity(s)}
+                                        >
+                                            <Text style={[styles.severityText, severity === s && styles.severityTextSelected]}>
+                                                {s.charAt(0).toUpperCase() + s.slice(1)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.saveButton, styles.saveButtonInScroll, isLoading && styles.saveButtonDisabled]}
+                                disabled={isLoading}
+                                onPress={() => onReport({ reason, trigger, severity })}
+                            >
+                                {isLoading ? <ActivityIndicator color="black" /> : (
+                                    <Text style={styles.saveButtonText}>Submit Report</Text>
+                                )}
+                            </TouchableOpacity>
+                        </ScrollView>
                     </View>
-                    <TouchableOpacity
-                        style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-                        disabled={isLoading}
-                        onPress={() => onReport({ reason, trigger, severity })}
-                    >
-                        {isLoading ? <ActivityIndicator color="black" /> : (
-                            <Text style={styles.saveButtonText}>Submit Report</Text>
-                        )}
-                    </TouchableOpacity>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 };
@@ -529,11 +538,7 @@ const JourneyDayViewScreen = () => {
                 <Text style={styles.sectionTitle}>
                     {viewingDay === currentDay ? "Today's Tasks" : `Day ${viewingDay} Tasks`}
                 </Text>
-                {(selectedDay !== null && dayDetailLoading) ? (
-                    <View style={styles.noTasks}>
-                        <ActivityIndicator size="small" color={COLORS.primary} />
-                    </View>
-                ) : tasks.length === 0 ? (
+                {tasks.length === 0 ? (
                     <View style={styles.noTasks}>
                         <Text style={styles.noTasksText}>No tasks for this day</Text>
                     </View>
@@ -779,7 +784,7 @@ const styles = StyleSheet.create({
     timerTimeBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     timerTime: { fontSize: 22, fontWeight: '700', color: COLORS.primary, fontVariant: ['tabular-nums'] },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-    modalContainer: { backgroundColor: '#0C0C0C', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 },
+    modalContainer: { backgroundColor: '#0C0C0C', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 16 },
     modalHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)',
@@ -806,6 +811,7 @@ const styles = StyleSheet.create({
     severityText: { fontSize: 14, color: 'rgba(255,255,255,0.5)' },
     severityTextSelected: { color: COLORS.primary, fontWeight: '600' },
     saveButton: { backgroundColor: COLORS.primary, marginHorizontal: 20, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+    saveButtonInScroll: { marginBottom: 20 },
     saveButtonDisabled: { opacity: 0.5 },
     saveButtonText: { fontSize: 16, fontWeight: '600', color: 'black' },
     reflectionCard: {

@@ -4,10 +4,10 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
+    TextInput,
     Platform,
     Share,
     Keyboard,
-    KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -18,9 +18,6 @@ import * as Crypto from 'expo-crypto';
 import {
     GiftedChat,
     Bubble,
-    InputToolbar,
-    Composer,
-    Send,
     Avatar,
     Message,
     IMessage,
@@ -43,7 +40,7 @@ import { formatDateTime } from '../utils/date';
 // AI Coach user
 const AI_COACH = {
     _id: 2,
-    name: 'AI Coach',
+    name: 'Coach Nudge',
     avatar: 'ai_coach',
 };
 
@@ -68,7 +65,7 @@ const FALLBACK_RESPONSE = "I'm having trouble connecting right now. Please try a
 // Welcome message shown when starting a new session
 const WELCOME_MESSAGE: IMessage = {
     _id: 'welcome',
-    text: "Hi! I'm your AI Coach. I'm here to help you stay on track with your habits. How are you feeling today? 💙",
+    text: "Hi! I'm Coach Nudge. I'm here to help you stay on track with your habits. How are you feeling today? 💙",
     createdAt: new Date(),
     user: AI_COACH,
 };
@@ -84,7 +81,7 @@ const ChatHeader = ({ onBack, onMenu, aiStatus }: { onBack: () => void; onMenu: 
                 <Mascot size={48} />
             </View>
             <View style={styles.aiInfo}>
-                <Text style={styles.aiName}>AI Coach</Text>
+                <Text style={styles.aiName}>Coach Nudge</Text>
                 <Text style={styles.aiStatus}>{aiStatus ?? 'Offline'}</Text>
             </View>
         </View>
@@ -268,36 +265,53 @@ const renderBubble = (props: any) => {
     );
 };
 
-// Custom Input Toolbar
-const renderInputToolbar = (props: any) => (
-    <InputToolbar
-        {...props}
-        containerStyle={styles.inputToolbar}
-        primaryStyle={styles.inputPrimary}
-    />
-);
+// Custom Input Toolbar – replaces GiftedChat's default toolbar
+// to give full control over layout and fix iOS keyboard / text-entry issues.
+const CustomInputToolbar = ({ onSend, bottomPadding = 0 }: { onSend: (messages: IMessage[]) => void; bottomPadding?: number }) => {
+    const [text, setText] = React.useState('');
 
-// Custom Composer
-const renderComposer = (props: any) => (
-    <Composer
-        {...props}
-        textInputStyle={styles.textInput}
-        placeholder="Type message"
-        placeholderTextColor="#585858"
-    />
-);
+    const handleSend = () => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const msg: IMessage = {
+            _id: Date.now().toString(),
+            text: trimmed,
+            createdAt: new Date(),
+            user: { _id: 1 }, // will be overridden by GiftedChat
+        };
+        onSend([msg]);
+        setText('');
+    };
 
-// Custom Send Button
-const renderSend = (props: any) => (
-    <Send {...props} containerStyle={styles.sendContainer}>
-        <LinearGradient
-            colors={[COLORS.primary, '#1E90FF']}
-            style={styles.voiceButtonGradient}
-        >
-            <Ionicons name="send" size={22} color="#000" />
-        </LinearGradient>
-    </Send>
-);
+    return (
+        <View style={[styles.inputToolbar, { paddingBottom: 8 + bottomPadding }]}>
+            <View style={styles.composerContainer}>
+                <TextInput
+                    style={styles.textInput}
+                    placeholder="Type message"
+                    placeholderTextColor="#585858"
+                    value={text}
+                    onChangeText={setText}
+                    multiline={false}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSend}
+                    blurOnSubmit={false}
+                    selectionColor={COLORS.primary}
+                    autoCorrect
+                    autoCapitalize="sentences"
+                />
+            </View>
+            <TouchableOpacity onPress={handleSend} activeOpacity={0.7}>
+                <LinearGradient
+                    colors={[COLORS.primary, '#1E90FF']}
+                    style={styles.sendButtonGradient}
+                >
+                    <Ionicons name="send" size={20} color="#000" />
+                </LinearGradient>
+            </TouchableOpacity>
+        </View>
+    );
+};
 
 // Chat Header List Component (for showing challenge at top)
 const renderChatHeader = (challenge: ChallengeData | null, onAcceptChallenge: () => void) => {
@@ -335,11 +349,21 @@ const ChatScreen = () => {
         name: authUser?.name || DEFAULT_CURRENT_USER.name,
         avatar: authUser?.avatar_url || DEFAULT_CURRENT_USER.avatar,
     }), [authUser]);
-    const [messages, setMessages] = useState<IMessage[]>([]);
+    const [messages, setMessages] = useState<IMessage[]>([{ ...WELCOME_MESSAGE, createdAt: new Date() }]);
     const [isTyping, setIsTyping] = useState(false);
     const [chatStarted, setChatStarted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [sessionLoading, setSessionLoading] = useState(true);
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+    // Track keyboard visibility for bottom safe area padding
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+        const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+        return () => { showSub.remove(); hideSub.remove(); };
+    }, []);
 
     // API hooks
     const [aiCoachMessage] = useAiCoachMessageMutation();
@@ -388,10 +412,6 @@ const ChatScreen = () => {
 
     useEffect(() => {
         if (!sessionData) {
-            // No session data yet — show welcome message
-            if (!sessionLoading && messages.length === 0) {
-                setMessages([{ ...WELCOME_MESSAGE, createdAt: new Date() }]);
-            }
             return;
         }
 
@@ -411,11 +431,9 @@ const ChatScreen = () => {
 
             setMessages(loadedMessages);
             setChatStarted(true);
-        } else {
-            // New session with no messages — show welcome
-            setMessages([{ ...WELCOME_MESSAGE, createdAt: new Date() }]);
         }
-    }, [sessionData, sessionLoading]);
+        // If session exists but has no messages, keep the welcome message that's already shown
+    }, [sessionData]);
 
     // Build session history from current messages for AI context
     const buildSessionHistory = useCallback(() => {
@@ -538,14 +556,14 @@ const ChatScreen = () => {
                         const chatText = [...messages]
                             .reverse()
                             .map(m => {
-                                const sender = m.user._id === CURRENT_USER._id ? 'You' : 'AI Coach';
+                                const sender = m.user._id === CURRENT_USER._id ? 'You' : 'Coach Nudge';
                                 const time = formatDateTime(m.createdAt as Date | string);
                                 return `[${time}] ${sender}: ${m.text}`;
                             })
                             .join('\n');
                         await Share.share({
                             message: chatText,
-                            title: 'Unhabit AI Coach Chat',
+                            title: 'Unhabit Coach Nudge Chat',
                         });
                     } catch {
                         // User cancelled or share failed — ignore
@@ -581,62 +599,41 @@ const ChatScreen = () => {
                 aiStatus={aiStatusText}
             />
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.keyboardAvoidingView}
-                keyboardVerticalOffset={insets.top}
-            >
-                <GiftedChat
-                    messages={messages}
-                    onSend={messages => onSend(messages)}
-                    user={CURRENT_USER}
-                    renderBubble={renderBubble}
-                    renderAvatar={renderAvatar}
-                    renderInputToolbar={renderInputToolbar}
-                    renderComposer={renderComposer}
-                    renderSend={renderSend}
-                    renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
-                    renderMessage={(props: any) => (
-                        // React's `key` is not part of the typed props for GiftedChat's renderMessage.
-                        // Let React handle list keys; Message doesn't need an explicit key prop here.
-                        <Message {...props} />
-                    )}
-                    renderChatEmpty={() => null}
-                    listViewProps={
-                        {
-                            // Keep keyboard open while still allowing the list to scroll.
-                            // GiftedChat's typings don't include `keyboardDismissMode`, but the underlying list supports it.
-                            keyboardDismissMode: 'interactive',
-                            keyboardShouldPersistTaps: 'always',
-                            scrollEnabled: true,
-                            ListFooterComponent: () => renderChatHeader(
-                                challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
-                                handleAcceptChallenge,
-                            ),
-                        } as any
-                    }
-                    isTyping={isTyping}
-                    alwaysShowSend
-                    scrollToBottomComponent={() => (
-                        <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
-                    )}
-                    minInputToolbarHeight={80}
-                    bottomOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-                    messagesContainerStyle={styles.messagesContainer}
-                    textInputProps={{
-                        autoCorrect: true,
-                        autoCapitalize: 'sentences',
-                        returnKeyType: 'send',
-                        blurOnSubmit: false,
-                        placeholderTextColor: '#585858',
-                        selectionColor: COLORS.primary,
-                        // Ensure typed text is visible with our dark composer background.
-                        style: {
-                            color: COLORS.white,
-                        },
-                    }}
-                />
-            </KeyboardAvoidingView>
+            <GiftedChat
+                messages={messages}
+                onSend={messages => onSend(messages)}
+                user={CURRENT_USER}
+                renderBubble={renderBubble}
+                renderAvatar={renderAvatar}
+                renderInputToolbar={() => (
+                    <CustomInputToolbar
+                        onSend={onSend}
+                        bottomPadding={keyboardVisible ? 0 : insets.bottom}
+                    />
+                )}
+                renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
+                renderMessage={(props: any) => (
+                    <Message {...props} />
+                )}
+                renderChatEmpty={() => null}
+                listViewProps={
+                    {
+                        keyboardShouldPersistTaps: 'handled',
+                        scrollEnabled: true,
+                        ListFooterComponent: () => renderChatHeader(
+                            challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
+                            handleAcceptChallenge,
+                        ),
+                    } as any
+                }
+                isTyping={isTyping}
+                scrollToBottomComponent={() => (
+                    <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
+                )}
+                minInputToolbarHeight={56}
+                bottomOffset={0}
+                messagesContainerStyle={styles.messagesContainer}
+            />
         </SafeAreaView>
     );
 };
@@ -781,10 +778,12 @@ const styles = StyleSheet.create({
     },
     // Input Toolbar
     inputToolbar: {
-        backgroundColor: 'transparent',
-        borderTopWidth: 0,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        backgroundColor: COLORS.background,
+        gap: 10,
     },
     inputPrimary: {
         alignItems: 'center',
@@ -796,8 +795,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#0C0C0C',
         borderWidth: 1,
         borderColor: 'rgba(129, 129, 129, 0.3)',
-        borderRadius: 62,
-        height: 56,
+        borderRadius: 28,
+        height: 48,
         paddingHorizontal: 16,
     },
     emojiButton: {
@@ -807,11 +806,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 14,
         color: COLORS.white,
-        marginLeft: 0,
-        marginRight: 0,
-        paddingTop: 0,
-        paddingBottom: 0,
-        lineHeight: 20,
+        height: 48,
         paddingHorizontal: 0,
         textAlignVertical: 'center',
         backgroundColor: 'transparent',
@@ -823,13 +818,11 @@ const styles = StyleSheet.create({
     sendContainer: {
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 8,
-        marginBottom: 0,
     },
-    voiceButtonGradient: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
+    sendButtonGradient: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
     },

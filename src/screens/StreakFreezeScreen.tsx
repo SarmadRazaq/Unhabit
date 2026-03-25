@@ -58,7 +58,10 @@ const StreakFreezeScreen = () => {
                             await freezeStreak(undefined).unwrap();
                             refetch();
                             alert('🧊 Streak Frozen!', 'Your streak is protected for today.');
-                        } catch { alert('Error', 'Failed to activate freeze.'); }
+                        } catch (err: any) {
+                            const msg = err?.data?.detail || err?.data?.message || err?.data?.error || 'Failed to activate freeze.';
+                            alert('Error', typeof msg === 'string' ? msg : 'Failed to activate freeze.');
+                        }
                     },
                 },
             ],
@@ -81,7 +84,10 @@ const StreakFreezeScreen = () => {
                             await purchaseStreakFreeze(undefined).unwrap();
                             refetch();
                             alert('✅ Purchased!', 'Streak freeze added to your inventory.');
-                        } catch { alert('Error', 'Not enough XP or purchase failed.'); }
+                        } catch (err: any) {
+                            const msg = err?.data?.detail || err?.data?.message || err?.data?.error || 'Not enough XP or purchase failed.';
+                            alert('Error', typeof msg === 'string' ? msg : 'Purchase failed.');
+                        }
                     },
                 },
             ],

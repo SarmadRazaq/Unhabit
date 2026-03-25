@@ -105,38 +105,20 @@ export const useSocialLogin = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            // Generate nonce for iOS (Google on iOS embeds it in the JWT).
-            // Android's Google Sign-In SDK does NOT embed the nonce in the JWT,
-            // so we decode the token and only forward the nonce when it is present.
-            const nonceBytes = await Crypto.getRandomBytesAsync(32);
-            const rawNonce = Array.from(nonceBytes)
-                .map((b) => b.toString(16).padStart(2, '0'))
-                .join('');
-            const hashedNonce = await Crypto.digestStringAsync(
-                Crypto.CryptoDigestAlgorithm.SHA256,
-                rawNonce
-            );
+            // @react-native-google-signin/google-signin v16 does not support custom nonces
+            // in signIn() — the native code ignores any nonce param.
+            // revokeAccess() fully tears down the existing Google OAuth session so the
+            // next signIn() issues a fresh ID token with no nonce claim. signOut() alone
+            // only clears the in-memory user; the underlying GIDSignIn session persists
+            // and can return a refreshed token that still carries an old nonce, causing
+            // Supabase to reject it ("nonce in id_token should either both exist or not").
+            try { await GoogleSignin.revokeAccess(); } catch { /* no-op if not signed in */ }
 
-            const userInfo = await GoogleSignin.signIn({ nonce: hashedNonce });
+            const userInfo = await GoogleSignin.signIn();
             const idToken = userInfo.data?.idToken;
 
             if (idToken) {
-                // Check whether the JWT actually contains a nonce claim.
-                // Supabase requires the nonce to be present in BOTH the token
-                // and the signInWithIdToken call, or absent from BOTH.
-                let tokenHasNonce = false;
-                try {
-                    const base64Payload = idToken.split('.')[1]
-                        .replace(/-/g, '+')
-                        .replace(/_/g, '/');
-                    const payload = JSON.parse(atob(base64Payload));
-                    tokenHasNonce = !!payload.nonce;
-                } catch { /* treat as no nonce on parse error */ }
-
-                await loginWithGoogle({
-                    idToken,
-                    nonce: tokenHasNonce ? rawNonce : undefined,
-                }).unwrap();
+                await loginWithGoogle({ idToken }).unwrap();
                 return true;
             } else {
                 if (__DEV__) console.error('No ID token present');

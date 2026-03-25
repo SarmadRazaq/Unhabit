@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Crypto from 'expo-crypto';
 import {
@@ -267,7 +268,7 @@ const renderBubble = (props: any) => {
 
 // Custom Input Toolbar – replaces GiftedChat's default toolbar
 // to give full control over layout and fix iOS keyboard / text-entry issues.
-const CustomInputToolbar = ({ onSend, bottomPadding = 0 }: { onSend: (messages: IMessage[]) => void; bottomPadding?: number }) => {
+const CustomInputToolbar = ({ onSend, keyboardVisible }: { onSend: (messages: IMessage[]) => void; keyboardVisible?: boolean }) => {
     const [text, setText] = React.useState('');
 
     const handleSend = () => {
@@ -284,7 +285,7 @@ const CustomInputToolbar = ({ onSend, bottomPadding = 0 }: { onSend: (messages: 
     };
 
     return (
-        <View style={[styles.inputToolbar, { paddingBottom: 8 + bottomPadding }]}>
+        <View style={[styles.inputToolbar, keyboardVisible && { paddingBottom: 0 }]}>
             <View style={styles.composerContainer}>
                 <TextInput
                     style={styles.textInput}
@@ -343,6 +344,7 @@ const ChatScreen = () => {
     const navigation = useNavigation();
     const { alert } = useThemedAlert();
     const insets = useSafeAreaInsets();
+    const tabBarHeight = useBottomTabBarHeight();
     const authUser = useAppSelector((state) => state.auth.user);
     const CURRENT_USER = useMemo(() => ({
         _id: authUser?.id || DEFAULT_CURRENT_USER._id,
@@ -606,10 +608,7 @@ const ChatScreen = () => {
                 renderBubble={renderBubble}
                 renderAvatar={renderAvatar}
                 renderInputToolbar={() => (
-                    <CustomInputToolbar
-                        onSend={onSend}
-                        bottomPadding={keyboardVisible ? 0 : insets.bottom}
-                    />
+                    <CustomInputToolbar onSend={onSend} keyboardVisible={keyboardVisible} />
                 )}
                 renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
                 renderMessage={(props: any) => (
@@ -631,7 +630,7 @@ const ChatScreen = () => {
                     <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
                 )}
                 minInputToolbarHeight={56}
-                bottomOffset={0}
+                bottomOffset={Platform.OS === 'ios' ? -tabBarHeight : 0}
                 messagesContainerStyle={styles.messagesContainer}
             />
         </SafeAreaView>
@@ -781,7 +780,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
-        paddingVertical: 4,
+        paddingTop: 4,
+        paddingBottom: 8,
         backgroundColor: COLORS.background,
         gap: 10,
     },

@@ -508,9 +508,15 @@ export const Dashboard = ({ navigation }: DashboardProps) => {
                             const freshResult = await refetch();
                             const fresh = freshResult.data;
 
-                            const streakCount = fresh?.streak?.current ?? (dashboardData?.streak?.current ?? 0) + 1;
+                            // The day they just completed = current_day before the backend advances it.
+                            // Use dashboardData (pre-completion snapshot) and clamp to ≥1 so a
+                            // 0-indexed API or uninitialised journey never shows "Day 0".
+                            const dayCompleted = Math.max(1, dashboardData?.journey?.current_day ?? 1);
+
+                            // Use || (not ??) so that a 0 returned by the API before it has updated
+                            // the streak still falls through to the local increment.
+                            const streakCount = fresh?.streak?.current || (dashboardData?.streak?.current ?? 0) + 1;
                             const xpEarned = totalXpEarned || fresh?.xp?.today || (checklistItems.length * 10);
-                            const dayCompleted = fresh?.journey?.current_day ?? dashboardData?.journey?.current_day ?? 1;
                             setForceRefreshOnFocus(true);
                             navigation?.navigate('DailyCompletion' as never, {
                                 streakCount,

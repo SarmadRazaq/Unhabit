@@ -593,22 +593,27 @@ const ChatScreen = () => {
                     renderComposer={renderComposer}
                     renderSend={renderSend}
                     renderChatFooter={() => renderChatFooter(handleQuickHelp, !chatStarted, handleMoodSelect)}
-                    renderMessage={(props) => {
-                        const { key, ...rest } = props;
-                        return <Message key={key} {...rest} />;
-                    }}
+                    renderMessage={(props: any) => (
+                        // React's `key` is not part of the typed props for GiftedChat's renderMessage.
+                        // Let React handle list keys; Message doesn't need an explicit key prop here.
+                        <Message {...props} />
+                    )}
                     renderChatEmpty={() => null}
-                    listViewProps={{
-                        keyboardDismissMode: 'interactive' as const,
-                        keyboardShouldPersistTaps: 'handled' as const,
-                        ListFooterComponent: () => renderChatHeader(
-                            challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
-                            handleAcceptChallenge,
-                        ),
-                    }}
+                    listViewProps={
+                        {
+                            // Keep keyboard open while still allowing the list to scroll.
+                            // GiftedChat's typings don't include `keyboardDismissMode`, but the underlying list supports it.
+                            keyboardDismissMode: 'none',
+                            keyboardShouldPersistTaps: 'handled',
+                            scrollEnabled: true,
+                            ListFooterComponent: () => renderChatHeader(
+                                challengeAccepted ? null : (dailyChallenge as ChallengeData | null) ?? null,
+                                handleAcceptChallenge,
+                            ),
+                        } as any
+                    }
                     isTyping={isTyping}
                     alwaysShowSend
-                    scrollToBottom
                     scrollToBottomComponent={() => (
                         <Ionicons name="chevron-down" size={24} color={COLORS.primary} />
                     )}

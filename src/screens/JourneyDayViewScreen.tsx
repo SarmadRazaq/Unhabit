@@ -100,8 +100,9 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <KeyboardAvoidingView
-                style={{ flex: 1 }}
+                style={{ flex: 1, justifyContent: 'flex-end' }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
@@ -115,6 +116,7 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
                             keyboardShouldPersistTaps="handled"
                             bounces={false}
                             showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ flexGrow: 1 }}
                         >
                             <View style={styles.modalBody}>
                                 <Text style={styles.inputLabel}>How are you feeling?</Text>
@@ -142,8 +144,8 @@ const ReflectionModal = ({ visible, onClose, onSave, isLoading, dayId }: {
                             </View>
                         </ScrollView>
                         <TouchableOpacity
-                            style={[styles.saveButton, (!text.trim() || isLoading) && styles.saveButtonDisabled]}
-                            disabled={!text.trim() || isLoading}
+                        style={[styles.saveButton, (!text.trim() || isLoading || !dayId) && styles.saveButtonDisabled]}
+                        disabled={!text.trim() || isLoading || !dayId}
                             onPress={() => onSave({ journeyDayId: dayId, mood, text: text.trim() })}
                         >
                             {isLoading ? <ActivityIndicator color="black" /> : (
@@ -258,21 +260,71 @@ const JourneyDayViewScreen = () => {
     const [uncompleteTask] = useUncompleteTaskMutation();
     const [createReflection, { isLoading: reflectionLoading }] = useCreateReflectionMutation();
     const [reportSlip, { isLoading: slipLoading }] = useReportSlipMutation();
-    const { data: savedReflectionData, refetch: refetchReflection } = useGetReflectionsQuery(dayId, { skip: !dayId });
+
+    const calendarSelectedDay =
+        selectedDay !== null
+            ? (Array.isArray((calendarData as any)?.days) ? (calendarData as any).days : []).find(
+                (d: any) => Number(d?.day_number ?? d?.dayNumber ?? d?.day) === selectedDay,
+            )
+            : null;
+
+    // When a calendar day is selected, `dayDetail` is already fetched with `dayNumber=selectedDay`.
+    // So we should primarily use *that* id for reflection queries, and skip while it's loading.
+    // This prevents cross-day reflection leakage.
+    const reflectionDayId =
+        selectedDay !== null
+            ? (!dayDetailLoading
+                ? (dayDetail?.journey_day_id
+                    ?? dayDetail?.day_id
+                    ?? dayDetail?.id
+                    ?? calendarSelectedDay?.journey_day_id
+                    ?? calendarSelectedDay?.day_id
+                    ?? calendarSelectedDay?.id
+                    ?? '')
+                : '')
+            : (todayData?.journey_day_id ?? todayData?.day_id ?? todayData?.id ?? '');
+
+    const { data: savedReflectionData, refetch: refetchReflection, isFetching: isFetchingReflection } =
+        useGetReflectionsQuery(reflectionDayId, { skip: !reflectionDayId });
+
     const [pauseJourney] = usePauseJourneyMutation();
     const [resumeJourney] = useResumeJourneyMutation();
 
     const [showReflection, setShowReflection] = useState(false);
     const [showSlip, setShowSlip] = useState(false);
+    const canUseDayDetail =
+        selectedDay !== null
+            ? !dayDetailLoading && !!(dayDetail?.journey_day_id ?? dayDetail?.day_id ?? dayDetail?.id)
+            : !!(todayData?.journey_day_id ?? todayData?.day_id ?? todayData?.id);
 
     const journey = activeJourney?.journey || activeJourney;
     const currentDay = todayData?.day_number ?? journey?.current_day ?? 1;
     const totalDays = todayData?.total_days ?? journey?.planned_days ?? journey?.total_days ?? 21;
     const tasks = (selectedDay !== null ? dayDetail?.tasks : todayData?.tasks) ?? [];
     const viewingDay = selectedDay ?? currentDay;
-    const dayId = dayDetail?.id ?? todayData?.day_id ?? '';
     const dayTheme = (selectedDay !== null ? dayDetail?.theme : todayData?.theme) as string | null ?? null;
     const dayPrompts = (selectedDay !== null ? dayDetail?.prompts : todayData?.prompts) as string[] | null ?? null;
+
+    // Debug: confirm which journey-day id we fetch/save reflections under.
+    useEffect(() => {
+        if (!__DEV__) return;
+        // eslint-disable-next-line no-console
+        console.debug('Reflection day state', {
+            selectedDay,
+            viewingDay,
+            reflectionDayId,
+            dayDetail: {
+                id: dayDetail?.id,
+                day_id: (dayDetail as any)?.day_id,
+                journey_day_id: (dayDetail as any)?.journey_day_id,
+            },
+            todayData: {
+                id: todayData?.id,
+                day_id: (todayData as any)?.day_id,
+                journey_day_id: (todayData as any)?.journey_day_id,
+            },
+        });
+    }, [selectedDay, viewingDay, reflectionDayId, dayDetail?.id, (dayDetail as any)?.day_id, (dayDetail as any)?.journey_day_id, todayData?.id, (todayData as any)?.day_id, (todayData as any)?.journey_day_id]);
 
     const completedCount = tasks.filter((t: any) => t.completed).length;
     const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -336,22 +388,8 @@ const JourneyDayViewScreen = () => {
         }
     };
 
-    if (journeyLoading || todayLoading) {
-        return (
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <Ionicons name="chevron-back" size={28} color={COLORS.white} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Journey</Text>
-                    <View style={{ width: 28 }} />
-                </View>
-                <View style={styles.centered}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                </View>
-            </SafeAreaView>
-        );
-    }
+    const isScreenLoading = journeyLoading || todayLoading || (selectedDay !== null && dayDetailLoading);
+    const showLoadingOverlay = isScreenLoading;
 
     if (!journeyId) {
         return (
@@ -454,7 +492,13 @@ const JourneyDayViewScreen = () => {
                                 isActive={d.day_number <= currentDay}
                                 isCompleted={d.completed}
                                 isCurrent={d.day_number === currentDay}
-                                onPress={() => d.day_number <= currentDay && setSelectedDay(d.day_number)}
+                                onPress={() => {
+                                    if (d.day_number > currentDay) return;
+                                    // Prevent saving reflection/slip against a stale day id when user switches days.
+                                    setShowReflection(false);
+                                    setShowSlip(false);
+                                    setSelectedDay(d.day_number);
+                                }}
                             />
                         ))}
                     </View>
@@ -526,10 +570,19 @@ const JourneyDayViewScreen = () => {
 
                 {/* Action Buttons */}
                 <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => setShowReflection(true)}>
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                            if (!canUseDayDetail) {
+                                alert('Please wait', 'Loading this day details...');
+                                return;
+                            }
+                            setShowReflection(true);
+                        }}
+                    >
                         <Ionicons name="journal-outline" size={20} color={COLORS.primary} />
                         <Text style={styles.actionButtonText}>
-                            {(savedReflectionData as any)?.data?.content ? 'Edit Reflection' : 'Write Reflection'}
+                            {!isFetchingReflection && (savedReflectionData as any)?.data?.content ? 'Edit Reflection' : 'Write Reflection'}
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -543,22 +596,50 @@ const JourneyDayViewScreen = () => {
 
                 {/* Saved Reflection */}
                 {(() => {
-                    const reflection = (savedReflectionData as any)?.data;
+                    const reflection = savedReflectionData as any;
                     if (!reflection?.content) return null;
+                    if (isFetchingReflection) return null; // Prevent showing old reflection content with a new day label
                     const mood = reflection.answers?.mood as string | undefined;
                     const date = reflection.updated_at ?? reflection.created_at;
+
+                    // Backend payloads can include reflection data under a different journey-day id than
+                    // the one we queried. If it doesn't match, hide it to avoid showing another day's reflection.
+                    const reflectionJourneyDayId =
+                        reflection?.journey_day_id
+                        ?? reflection?.journeyDayId
+                        ?? reflection?.journey_day?.id
+                        ?? reflection?.journey_day?.journey_day_id
+                        ?? null;
+                    if (reflectionJourneyDayId && reflectionDayId && String(reflectionJourneyDayId) !== String(reflectionDayId)) {
+                        return null;
+                    }
+
+                    const reflectionDayNumber =
+                        reflection?.journey_day_number
+                        ?? reflection?.day_number
+                        ?? reflection?.dayNumber
+                        ?? reflection?.journey_day?.day_number
+                        ?? reflection?.journey_day?.dayNumber
+                        ?? null;
+                    const targetDayNumber = viewingDay ?? null;
+                    if (reflectionDayNumber != null && targetDayNumber != null && Number(reflectionDayNumber) !== Number(targetDayNumber)) {
+                        return null;
+                    }
+
                     return (
                         <View style={styles.reflectionCard}>
                             <View style={styles.reflectionCardHeader}>
                                 <Ionicons name="journal" size={16} color={COLORS.primary} />
-                                <Text style={styles.reflectionCardTitle}>
-                                    {mood ? `${mood}  Day ${viewingDay} Reflection` : `Day ${viewingDay} Reflection`}
-                                </Text>
-                                {date && (
-                                    <Text style={styles.reflectionCardDate}>
-                                        {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                <View style={{ flex: 1, gap: 2 }}>
+                                    <Text style={styles.reflectionCardTitle}>
+                                        {mood ? `${mood}  Day ${viewingDay} Reflection` : `Day ${viewingDay} Reflection`}
                                     </Text>
-                                )}
+                                    {date && (
+                                        <Text style={styles.reflectionCardDate}>
+                                            {new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                             <Text style={styles.reflectionCardText}>{reflection.content}</Text>
                         </View>
@@ -574,7 +655,7 @@ const JourneyDayViewScreen = () => {
                 onClose={() => setShowReflection(false)}
                 onSave={handleReflection}
                 isLoading={reflectionLoading}
-                dayId={dayId}
+                dayId={reflectionDayId}
             />
             <SlipModal
                 visible={showSlip}
@@ -582,6 +663,12 @@ const JourneyDayViewScreen = () => {
                 onReport={handleSlip}
                 isLoading={slipLoading}
             />
+
+            {showLoadingOverlay && (
+                <View style={styles.loadingOverlay} pointerEvents="none">
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+            )}
         </SafeAreaView>
     );
 };
@@ -600,6 +687,17 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 18, fontWeight: '500', color: COLORS.white },
     scrollView: { flex: 1 },
     scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
+    },
     progressCard: { borderRadius: 12, borderWidth: 1, borderColor: 'rgba(44,232,198,0.2)', padding: 20, gap: 12 },
     progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     progressLabel: { fontSize: 13, color: COLORS.primary, fontWeight: '500' },
